@@ -547,22 +547,86 @@
       return `<div class="flex items-center gap-2"><div class="bar-track ${width}"><div class="bar-fill" style="width:${score}%"></div></div><span class="font-black">${score}</span></div>`;
     }
 
+    // ── Historia helpers ───────────────────────────────────────────────────────
+    function adjBar(adj, maxAdj) {
+      const pct = Math.round(adj / maxAdj * 100);
+      return `<div class="flex items-center gap-2"><div class="bar-track w-20"><div class="bar-fill" style="width:${pct}%"></div></div><span class="font-black">${adj.toFixed(1)}</span></div>`;
+    }
+
+    function activeBadge(name) {
+      const p = state.allPlayers.find(ap => ap.displayName?.toLowerCase() === name.toLowerCase());
+      return p
+        ? `<span class="ml-2 align-middle text-[9px] font-black bg-[#c9082a] text-white px-1.5 py-0.5 rounded uppercase">Activo</span>`
+        : "";
+    }
+
+    function handleHistoriaPlayerClick(name, data) {
+      const espnPlayer = state.allPlayers.find(p => p.displayName?.toLowerCase() === name.toLowerCase());
+      if (espnPlayer) { openPlayerDetail(espnPlayer); return; }
+      // Retired player — build a quick detail panel from json data
+      const seasons = data.top_player_seasons.filter(s => s.name === name);
+      const career  = data.top_careers.find(c => c.name === name);
+      if (!career && !seasons.length) return;
+      const maxAdj = data.top_player_seasons[0]?.adj || 1;
+      let el = $("historia-player-detail");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "historia-player-detail";
+        el.className = "panel mt-4 overflow-hidden";
+        $("view-historia").appendChild(el);
+      }
+      el.innerHTML = `
+        <div class="court-lines border-b border-black/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[.18em] text-[#667085]">Jugador retirado · datos históricos nba_api</p>
+            <h2 class="display text-5xl font-black uppercase leading-none">${name}</h2>
+            ${career ? `<p class="mt-1 text-sm font-semibold text-[#667085]">${career.total_seasons} temporadas · ${career.total_gp} PJ · pico ${career.peak_season} (${career.peak_team})</p>` : ""}
+          </div>
+          <button class="rounded border border-black/15 px-3 py-2 text-xs font-black uppercase hover:bg-[#111827] hover:text-white self-start" onclick="document.getElementById('historia-player-detail').remove()">Cerrar</button>
+        </div>
+        ${seasons.length ? `<div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left">
+          <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+            <th class="px-4 py-3">Temporada</th><th class="px-4 py-3">Equipo</th>
+            <th class="px-4 py-3 text-right">Score adj.</th>
+            <th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th>
+            <th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">STL</th>
+            <th class="px-4 py-3 text-right">MPG</th><th class="px-4 py-3 text-right">PJ</th>
+          </tr></thead>
+          <tbody class="display text-xl">${seasons.map(s => `<tr class="row border-b border-black/10">
+            <td class="px-4 py-3">${s.season}</td>
+            <td class="px-4 py-3 text-[#667085]">${s.team}</td>
+            <td class="px-4 py-3 text-right">${adjBar(s.adj, maxAdj)}</td>
+            <td class="px-4 py-3 text-right">${s.pts}</td><td class="px-4 py-3 text-right">${s.reb}</td>
+            <td class="px-4 py-3 text-right">${s.ast}</td><td class="px-4 py-3 text-right">${s.stl}</td>
+            <td class="px-4 py-3 text-right">${s.mpg}</td><td class="px-4 py-3 text-right">${s.gp}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>` : `<p class="p-5 text-[#667085] text-sm">Solo aparece en el top de carreras, no en el top 100 de temporadas individuales.</p>`}`;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function attachHistoriaClicks(data) {
+      $("historia-content").querySelectorAll("[data-hname]").forEach(row =>
+        row.addEventListener("click", () => handleHistoriaPlayerClick(row.dataset.hname, data))
+      );
+    }
+
     function renderHistoriaSeasons(data) {
       const rows = data.top_player_seasons;
+      const maxAdj = rows[0]?.adj || 1;
       return `<div class="overflow-x-auto"><table class="w-full min-w-[860px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th>
           <th class="px-4 py-3">Equipo</th><th class="px-4 py-3">Temporada</th>
-          <th class="px-4 py-3 text-right">Score era-adj.</th>
+          <th class="px-4 py-3 text-right" title="Box score era-ajustado absoluto — comparable entre épocas">Score era-adj.</th>
           <th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th>
           <th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">MPG</th>
         </tr></thead>
-        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
+        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row clickable border-b border-black/10 cursor-pointer" data-hname="${r.name}">
           <td class="px-4 py-3 text-[#667085]">${i+1}</td>
-          <td class="px-4 py-3 font-black">${r.name}</td>
+          <td class="px-4 py-3 font-black">${r.name}${activeBadge(r.name)}</td>
           <td class="px-4 py-3 text-[#667085]">${r.team}</td>
           <td class="px-4 py-3 text-[#667085]">${r.season}</td>
-          <td class="px-4 py-3 text-right">${scoreBar(r.score)}</td>
+          <td class="px-4 py-3 text-right">${adjBar(r.adj, maxAdj)}</td>
           <td class="px-4 py-3 text-right">${r.pts}</td>
           <td class="px-4 py-3 text-right">${r.reb}</td>
           <td class="px-4 py-3 text-right">${r.ast}</td>
@@ -573,20 +637,21 @@
 
     function renderHistoriaCareers(data) {
       const rows = data.top_careers;
+      const maxAdj = rows[0]?.career_adj || 1;
       return `<div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th>
-          <th class="px-4 py-3 text-right">Score carrera</th>
+          <th class="px-4 py-3 text-right" title="Promedio ponderado de las 5 mejores temporadas era-ajustadas">Score carrera</th>
           <th class="px-4 py-3 text-right">Score pico</th>
           <th class="px-4 py-3">Mejor temporada</th>
-          <th class="px-4 py-3 text-right">PTS pico</th><th class="px-4 py-3 text-right">REB pico</th>
-          <th class="px-4 py-3 text-right">AST pico</th>
-          <th class="px-4 py-3 text-right">Temporadas</th><th class="px-4 py-3 text-right">PJ total</th>
+          <th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th>
+          <th class="px-4 py-3 text-right">AST</th>
+          <th class="px-4 py-3 text-right">Temp.</th><th class="px-4 py-3 text-right">PJ</th>
         </tr></thead>
-        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
+        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row clickable border-b border-black/10 cursor-pointer" data-hname="${r.name}">
           <td class="px-4 py-3 text-[#667085]">${i+1}</td>
-          <td class="px-4 py-3 font-black">${r.name}</td>
-          <td class="px-4 py-3 text-right">${scoreBar(r.career_score)}</td>
+          <td class="px-4 py-3 font-black">${r.name}${activeBadge(r.name)}</td>
+          <td class="px-4 py-3 text-right">${adjBar(r.career_adj, maxAdj)}</td>
           <td class="px-4 py-3 text-right font-black">${r.peak_score}</td>
           <td class="px-4 py-3 text-[#667085]">${r.peak_season} · ${r.peak_team}</td>
           <td class="px-4 py-3 text-right">${r.peak_pts}</td>
@@ -600,6 +665,7 @@
 
     function renderHistoriaTeams(data) {
       const rows = data.top_team_seasons;
+      const maxAdj = rows[0]?.team_adj || 1;
       return `<div class="overflow-x-auto"><table class="w-full min-w-[820px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Equipo</th>
@@ -608,13 +674,13 @@
           <th class="px-4 py-3 text-right">W-L</th>
           <th class="px-4 py-3">Mejor jugador</th>
           <th class="px-4 py-3 text-right">Score jugador</th>
-          <th class="px-4 py-3 text-right">Jugadores</th>
+          <th class="px-4 py-3 text-right">Rot.</th>
         </tr></thead>
         <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
           <td class="px-4 py-3 text-[#667085]">${i+1}</td>
           <td class="px-4 py-3 font-black">${r.name}</td>
           <td class="px-4 py-3 text-[#667085]">${r.season}</td>
-          <td class="px-4 py-3 text-right">${scoreBar(r.team_score)}</td>
+          <td class="px-4 py-3 text-right">${adjBar(r.team_adj, maxAdj)}</td>
           <td class="px-4 py-3 text-right">${r.wins}-${r.losses}</td>
           <td class="px-4 py-3">${r.best_player}</td>
           <td class="px-4 py-3 text-right font-black">${r.best_player_score}</td>
@@ -625,8 +691,9 @@
 
     function renderHistoriaGames(data) {
       const rows = data.top_games;
+      const maxQ = rows[0]?.quality || 1;
       return `<div class="overflow-x-auto">
-        <p class="mb-3 text-xs font-semibold text-[#667085] uppercase">Partidos de playoff donde ambos equipos tenían el mayor rating esa temporada.</p>
+        <p class="mb-3 text-xs font-semibold text-[#667085] uppercase">Playoffs donde ambos equipos tenían el mayor rating esa temporada. Cuanto más ajustado el marcador, mayor calidad.</p>
         <table class="w-full min-w-[800px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Fecha</th>
@@ -642,7 +709,7 @@
           <td class="px-4 py-3 text-right font-black">${r.winner_pts}–${r.loser_pts}</td>
           <td class="px-4 py-3 text-right">${r.winner_score}</td>
           <td class="px-4 py-3 text-right">${r.loser_score}</td>
-          <td class="px-4 py-3 text-right">${scoreBar(r.quality, "w-16")}</td>
+          <td class="px-4 py-3 text-right">${adjBar(r.quality, maxQ)}</td>
         </tr>`).join("")}</tbody>
       </table></div>`;
     }
@@ -657,6 +724,11 @@
       if (historiaState.tab === "careers")  content.innerHTML = renderHistoriaCareers(data);
       if (historiaState.tab === "teams")    content.innerHTML = renderHistoriaTeams(data);
       if (historiaState.tab === "games")    content.innerHTML = renderHistoriaGames(data);
+      attachHistoriaClicks(data);
+      // Load active players silently in background if not yet loaded; re-render badges when done
+      if (!state.allPlayers.length && state.teams.length) {
+        loadAllPlayers().then(() => renderHistoria());
+      }
     }
 
     function showView(view) {
