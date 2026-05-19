@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Courtside Analytics - NHL Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#2f3131",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface-bright": "#3a3939",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "surface-variant": "#353534",
+                        "secondary-fixed": "#dbe3ed",
+                        "primary-container": "#e2e2e2",
+                        "inverse-on-surface": "#313030",
+                        "on-primary-container": "#636565",
+                        "on-error": "#690005",
+                        "primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#40484f",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-secondary": "#293138",
+                        "on-surface-variant": "#c4c7c8",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "secondary": "#bfc7d1",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "on-secondary-container": "#b1b9c2",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "surface-container-highest": "#353534",
+                        "background": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "tertiary-fixed": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#444748",
+                        "on-secondary-fixed": "#151c23",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-container": "#201f1f",
+                        "on-surface": "#e5e2e1",
+                        "surface": "#131313",
+                        "error-container": "#93000a",
+                        "tertiary-container": "#e5e2e1",
+                        "inverse-primary": "#5d5f5f",
+                        "surface-container-high": "#2a2a2a",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary-container": "#424a52",
+                        "surface-tint": "#c6c6c7",
+                        "surface-dim": "#131313",
+                        "on-tertiary": "#303030",
+                        "tertiary": "#ffffff",
+                        "inverse-surface": "#e5e2e1",
+                        "on-tertiary-container": "#656464",
+                        "outline": "#8e9192",
+                        "surface-container-low": "#1c1b1b",
+                        "secondary-fixed-dim": "#bfc7d1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "lg": "40px",
+                        "base": "8px",
+                        "margin-desktop": "32px",
+                        "md": "24px",
+                        "sm": "12px",
+                        "margin-mobile": "16px",
+                        "xl": "64px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Barlow Condensed"],
+                        "body-md": ["Inter"],
+                        "stat-numeric": ["Barlow Condensed"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Barlow Condensed"],
+                        "headline-md": ["Barlow Condensed"],
+                        "headline-lg": ["Barlow Condensed"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "stat-numeric": ["20px", {"lineHeight": "1", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #131313;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #444748;
+        }
+        .news-ticker-animation {
+            animation: ticker 30s linear infinite;
+        }
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .metallic-gradient {
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary selection:text-on-primary custom-scrollbar overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-margin-mobile h-16 sticky top-0 z-50 bg-background dark:bg-background border-b border-surface-variant dark:border-surface-variant">
+<div class="flex items-center gap-base">
+<span class="material-symbols-outlined text-primary cursor-pointer hover:bg-surface-container-high transition-colors duration-200 p-xs" data-icon="menu">menu</span>
+<h1 class="font-headline-md text-headline-md-mobile font-bold tracking-tighter text-primary dark:text-primary uppercase">COURTSIDE ANALYTICS</h1>
+</div>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary cursor-pointer hover:bg-surface-container-high transition-colors duration-200 p-xs" data-icon="search">search</span>
+</div>
+</header>
+<main class="pb-32">
+<!-- Standings Section -->
+<section class="mt-md px-margin-mobile">
+<div class="flex gap-xs mb-sm">
+<button class="px-md py-xs font-label-caps text-label-caps border-b-2 border-primary text-primary transition-all" id="tab-eastern" onclick="switchTab('eastern')">EASTERN</button>
+<button class="px-md py-xs font-label-caps text-label-caps border-b-2 border-transparent text-on-surface-variant hover:text-primary transition-all" id="tab-western" onclick="switchTab('western')">WESTERN</button>
+</div>
+<div class="bg-surface-container-low border border-surface-variant rounded-lg overflow-hidden" id="standings-content">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container font-label-caps text-label-caps text-on-surface-variant uppercase">
+<tr>
+<th class="px-sm py-xs">Seed</th>
+<th class="px-sm py-xs">Team</th>
+<th class="px-sm py-xs text-right">W-L</th>
+<th class="px-sm py-xs text-right">GB</th>
+</tr>
+</thead>
+<tbody class="font-stat-numeric text-stat-numeric" id="standings-body">
+<!-- Eastern Data (Default) -->
+<tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="px-sm text-on-surface-variant">1</td>
+<td class="px-sm text-primary flex items-center gap-xs">
+<div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">NYR</div>
+                                RANGERS
+                            </td>
+<td class="px-sm text-right">55-23</td>
+<td class="px-sm text-right">-</td>
+</tr>
+<tr class="h-10 border-b border-surface-variant/30 bg-surface-container/40 border-l-4 border-primary">
+<td class="px-sm text-on-surface-variant">2</td>
+<td class="px-sm text-primary flex items-center gap-xs">
+<div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">FLA</div>
+                                PANTHERS
+                            </td>
+<td class="px-sm text-right">52-24</td>
+<td class="px-sm text-right">2.5</td>
+</tr>
+<tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="px-sm text-on-surface-variant">3</td>
+<td class="px-sm text-primary flex items-center gap-xs">
+<div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">BOS</div>
+                                BRUINS
+                            </td>
+<td class="px-sm text-right">47-20</td>
+<td class="px-sm text-right">4.0</td>
+</tr>
+<tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="px-sm text-on-surface-variant">4</td>
+<td class="px-sm text-primary flex items-center gap-xs">
+<div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">CAR</div>
+                                HURRICANES
+                            </td>
+<td class="px-sm text-right">52-23</td>
+<td class="px-sm text-right">1.0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Playoff Bracket Section -->
+<section class="mt-lg px-margin-mobile">
+<h2 class="font-headline-md text-headline-md mb-base text-primary tracking-tight uppercase">PLAYOFF BRACKET</h2>
+<div class="bg-surface-container border border-surface-variant p-md rounded-xl metallic-gradient relative overflow-hidden">
+<!-- Visual Background Texture -->
+<div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, #fff 1px, transparent 0); background-size: 24px 24px;"></div>
+<div class="relative z-10 flex flex-col gap-md">
+<!-- Matchup 1 -->
+<div class="flex items-center gap-base">
+<div class="flex-1 flex flex-col gap-1">
+<div class="flex justify-between items-center bg-surface-container-low p-sm border border-surface-variant rounded">
+<div class="flex items-center gap-sm">
+<span class="font-label-caps text-on-surface-variant">1</span>
+<span class="font-label-caps text-primary">NY RANGERS</span>
+</div>
+<span class="font-stat-numeric text-primary">4</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm border border-surface-variant/50 rounded opacity-50">
+<div class="flex items-center gap-sm">
+<span class="font-label-caps text-on-surface-variant">WC</span>
+<span class="font-label-caps text-primary">WASHINGTON</span>
+</div>
+<span class="font-stat-numeric text-primary">0</span>
+</div>
+</div>
+<div class="w-8 h-px bg-primary relative">
+<div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+<!-- Matchup 2 -->
+<div class="flex items-center gap-base">
+<div class="flex-1 flex flex-col gap-1">
+<div class="flex justify-between items-center bg-surface-container-low p-sm border border-surface-variant rounded">
+<div class="flex items-center gap-sm">
+<span class="font-label-caps text-on-surface-variant">2</span>
+<span class="font-label-caps text-primary">FLA PANTHERS</span>
+</div>
+<span class="font-stat-numeric text-primary">3</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-sm border border-surface-variant rounded">
+<div class="flex items-center gap-sm">
+<span class="font-label-caps text-on-surface-variant">3</span>
+<span class="font-label-caps text-primary">TB LIGHTNING</span>
+</div>
+<span class="font-stat-numeric text-primary">1</span>
+</div>
+</div>
+<div class="w-8 h-12 border-t-2 border-r-2 border-surface-variant rounded-tr-xl"></div>
+</div>
+</div>
+<div class="mt-md flex justify-center">
+<button class="bg-primary text-on-primary font-label-caps text-label-caps px-lg py-sm rounded hover:opacity-80 transition-all active:scale-95 uppercase">VIEW FULL BRACKET</button>
+</div>
+</div>
+</section>
+<!-- Featured Analyst Insight -->
+<section class="mt-lg px-margin-mobile">
+<div class="relative h-48 rounded-xl overflow-hidden group">
+<img alt="Analyst Insight Background" class="w-full h-full object-cover grayscale transition-transform duration-700 group-hover:scale-105" data-alt="A cinematic, high-contrast photograph of a professional ice hockey arena at night. The pristine white ice surface is illuminated by sharp stadium spotlights, creating a metallic, cold atmosphere. Players in sleek uniforms are blurred in the background, focusing on the tactical lines of the rink. The color palette is dominated by deep blacks, icy whites, and silver metallic tones, conveying an elite sports analyst aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuADIv2QktSkKzpL7iUbaA0R9cG_lRfbim9cq6nesJygjpWiLlZVh9UuNoUOOxgFqRLFJMb3wzztDDcpIeaVxwrnTwK7fO-FMeJUSO8Pjqm6zsw_7DDPY7OG6_YKP1ofH0Lz27Vjypl46k-6tC7myfDzwQV4xjXA8kwplae6Au4t_ZC4urN9sdqFb_ezMFbgwXd05QBQlQCef3qm_i1KACvnyxgd26OQVT-2eIjOQeqAzuNJ4Tvrg5yGKbQMj-pe05K-9iiYJAg7cXs_"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+<div class="absolute bottom-base left-base right-base">
+<span class="font-label-caps text-[10px] bg-primary text-on-primary px-2 py-0.5 rounded uppercase mb-xs inline-block">Analyst Pick</span>
+<h3 class="font-headline-md text-primary leading-tight uppercase">Why the Rangers' Power Play is Unstoppable</h3>
+<p class="font-body-md text-on-surface-variant text-sm line-clamp-1">Statistical deep-dive into the man-advantage metrics...</p>
+</div>
+</div>
+</section>
+</main>
+<!-- News Ticker -->
+<div class="fixed bottom-20 left-0 w-full bg-surface-container-lowest border-y border-surface-variant py-2 z-40 overflow-hidden">
+<div class="news-ticker-animation flex whitespace-nowrap gap-xl font-label-caps text-label-caps text-on-surface-variant">
+<span>BREAKING: CONNOR MCDAVID REACHES 100 ASSISTS IN A SINGLE SEASON</span>
+<span>SCORES: TOR (3) - FLA (2) F/OT</span>
+<span>INJURY REPORT: NATHAN MACKINNON LISTED AS DAY-TO-DAY</span>
+<span>LEAGUE NEWS: EXPANSION DRAFT DETAILS TO BE RELEASED NEXT TUESDAY</span>
+<span>RUMOR: PITTSBURGH EXPLORING GOALTENDING OPTIONS BEFORE DEADLINE</span>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-safe bg-surface-container dark:bg-surface-container border-t border-surface-variant dark:border-surface-variant">
+<a class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-lg px-4 py-1 transition-transform duration-150 scale-95" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-caps text-label-caps mt-1">DASHBOARD</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-label-caps text-label-caps mt-1">TEAMS</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-label-caps text-label-caps mt-1">PLAYERS</span>
+</a>
+</nav>
+<script>
+        function switchTab(conference) {
+            const body = document.getElementById('standings-body');
+            const tabEast = document.getElementById('tab-eastern');
+            const tabWest = document.getElementById('tab-western');
+
+            if (conference === 'eastern') {
+                tabEast.classList.add('border-primary', 'text-primary');
+                tabEast.classList.remove('border-transparent', 'text-on-surface-variant');
+                tabWest.classList.remove('border-primary', 'text-primary');
+                tabWest.classList.add('border-transparent', 'text-on-surface-variant');
+                
+                body.innerHTML = `
+                    <tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+                        <td class="px-sm text-on-surface-variant">1</td>
+                        <td class="px-sm text-primary flex items-center gap-xs">
+                            <div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">NYR</div>
+                            RANGERS
+                        </td>
+                        <td class="px-sm text-right">55-23</td>
+                        <td class="px-sm text-right">-</td>
+                    </tr>
+                    <tr class="h-10 border-b border-surface-variant/30 bg-surface-container/40 border-l-4 border-primary">
+                        <td class="px-sm text-on-surface-variant">2</td>
+                        <td class="px-sm text-primary flex items-center gap-xs">
+                            <div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">FLA</div>
+                            PANTHERS
+                        </td>
+                        <td class="px-sm text-right">52-24</td>
+                        <td class="px-sm text-right">2.5</td>
+                    </tr>
+                    <tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+                        <td class="px-sm text-on-surface-variant">3</td>
+                        <td class="px-sm text-primary flex items-center gap-xs">
+                            <div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">BOS</div>
+                            BRUINS
+                        </td>
+                        <td class="px-sm text-right">47-20</td>
+                        <td class="px-sm text-right">4.0</td>
+                    </tr>
+                `;
+            } else {
+                tabWest.classList.add('border-primary', 'text-primary');
+                tabWest.classList.remove('border-transparent', 'text-on-surface-variant');
+                tabEast.classList.remove('border-primary', 'text-primary');
+                tabEast.classList.add('border-transparent', 'text-on-surface-variant');
+
+                body.innerHTML = `
+                    <tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+                        <td class="px-sm text-on-surface-variant">1</td>
+                        <td class="px-sm text-primary flex items-center gap-xs">
+                            <div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">DAL</div>
+                            STARS
+                        </td>
+                        <td class="px-sm text-right">52-21</td>
+                        <td class="px-sm text-right">-</td>
+                    </tr>
+                    <tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+                        <td class="px-sm text-on-surface-variant">2</td>
+                        <td class="px-sm text-primary flex items-center gap-xs">
+                            <div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">VAN</div>
+                            CANUCKS
+                        </td>
+                        <td class="px-sm text-right">50-23</td>
+                        <td class="px-sm text-right">2.0</td>
+                    </tr>
+                    <tr class="h-10 border-b border-surface-variant/30 hover:bg-surface-container-high transition-colors">
+                        <td class="px-sm text-on-surface-variant">3</td>
+                        <td class="px-sm text-primary flex items-center gap-xs">
+                            <div class="w-6 h-6 bg-surface-container-highest rounded-full flex items-center justify-center font-bold text-[10px]">WPG</div>
+                            JETS
+                        </td>
+                        <td class="px-sm text-right">52-24</td>
+                        <td class="px-sm text-right">0.5</td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Initialize micro-interactions
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('mousedown', () => el.style.transform = 'scale(0.95)');
+            el.addEventListener('mouseup', () => el.style.transform = '');
+            el.addEventListener('mouseleave', () => el.style.transform = '');
+        });
+    </script>
+</body></html>

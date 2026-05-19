@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Courtside Analytics - Teams &amp; Rosters</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for data-rich views */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0e0e0e; }
+        ::-webkit-scrollbar-thumb { background: #353534; border-radius: 2px; }
+        
+        .metallic-gradient {
+            background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+        }
+        .ice-shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+        .ice-shimmer::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent);
+            transform: rotate(45deg);
+            pointer-events: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#2f3131",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface-bright": "#3a3939",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "surface-variant": "#353534",
+                        "secondary-fixed": "#dbe3ed",
+                        "primary-container": "#e2e2e2",
+                        "inverse-on-surface": "#313030",
+                        "on-primary-container": "#636565",
+                        "on-error": "#690005",
+                        "primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#40484f",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-secondary": "#293138",
+                        "on-surface-variant": "#c4c7c8",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "secondary": "#bfc7d1",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "on-secondary-container": "#b1b9c2",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "surface-container-highest": "#353534",
+                        "background": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "tertiary-fixed": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#444748",
+                        "on-secondary-fixed": "#151c23",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-container": "#201f1f",
+                        "on-surface": "#e5e2e1",
+                        "surface": "#131313",
+                        "error-container": "#93000a",
+                        "tertiary-container": "#e5e2e1",
+                        "inverse-primary": "#5d5f5f",
+                        "surface-container-high": "#2a2a2a",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary-container": "#424a52",
+                        "surface-tint": "#c6c6c7",
+                        "surface-dim": "#131313",
+                        "on-tertiary": "#303030",
+                        "tertiary": "#ffffff",
+                        "inverse-surface": "#e5e2e1",
+                        "on-tertiary-container": "#656464",
+                        "outline": "#8e9192",
+                        "surface-container-low": "#1c1b1b",
+                        "secondary-fixed-dim": "#bfc7d1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "lg": "40px",
+                        "base": "8px",
+                        "margin-desktop": "32px",
+                        "md": "24px",
+                        "sm": "12px",
+                        "margin-mobile": "16px",
+                        "xl": "64px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Barlow Condensed"],
+                        "body-md": ["Inter"],
+                        "stat-numeric": ["Barlow Condensed"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Barlow Condensed"],
+                        "headline-md": ["Barlow Condensed"],
+                        "headline-lg": ["Barlow Condensed"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "stat-numeric": ["20px", {"lineHeight": "1", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-16 sticky top-0 z-50 bg-background border-b border-surface-variant">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors duration-200 p-2">menu</button>
+<h1 class="font-headline-md text-headline-md-mobile md:text-headline-md font-bold tracking-tighter text-primary uppercase">COURTSIDE ANALYTICS</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors duration-200 p-2">search</button>
+</div>
+</header>
+<main class="min-h-screen pb-24 md:pb-base md:pt-base px-margin-mobile md:px-margin-desktop max-w-7xl mx-auto">
+<!-- Dashboard Header / Subtitle -->
+<section class="mb-lg flex flex-col md:flex-row justify-between items-start md:items-end border-l-4 border-primary pl-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">League Database</p>
+<h2 class="font-headline-lg text-headline-lg text-primary uppercase">Active Teams &amp; Performance</h2>
+</div>
+<div class="mt-4 md:mt-0 text-right">
+<span class="font-label-caps text-label-caps text-on-surface-variant">SEASON 2023-24</span>
+</div>
+</section>
+<!-- Teams Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-gutter" id="teams-grid">
+<!-- Team Card 1 (Lakers) -->
+<div class="group cursor-pointer bg-surface-container-low border border-surface-variant hover:border-primary transition-all duration-300 p-base ice-shimmer" onclick="showRoster('Los Angeles Lakers', 'LAL')">
+<div class="flex flex-col items-center justify-center py-base">
+<img alt="Lakers" class="h-20 w-20 object-contain group-hover:scale-105 transition-transform duration-500" data-alt="A professional, high-resolution NBA Los Angeles Lakers logo centered in a minimalist studio setup. The lighting is dramatic and cold, with metallic silver highlights reflecting off the purple and gold textures. The background is a deep charcoal grey with subtle industrial mesh patterns, creating a premium sports broadcasting aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAraNUxMWNZdjOZe1h6drNXASyoi54_SIWKfYJYlmV-oKiGlv9ONO-fLoByAfIxAiZbBLdlG9Jo4GYITXBd6uOvPhDcBhQR79TDFRZAYAKKnRiTkCkqNSmypGkSePyuvxDFQ3F9td1cqDZQ0AvNiXf0RFw-zE2TQGiYLfjdaRUkZSr1W_KRzNvXJlZtpyi8CR0QxwWaXWXnZ2HzLx6UIQAzy1YEFAAf5nlZ13rGKVmQ9ViNvRaNEXgxk4D9Ub_2pkTb9Hht9d7T5bI"/>
+<h3 class="font-headline-md text-headline-md text-primary mt-4 group-hover:text-primary transition-colors">LAKERS</h3>
+<p class="font-stat-numeric text-stat-numeric text-on-surface-variant">47 - 35</p>
+</div>
+<div class="w-full h-1 bg-surface-variant mt-2 overflow-hidden">
+<div class="h-full bg-primary w-3/4"></div>
+</div>
+</div>
+<!-- Team Card 2 (Celtics) -->
+<div class="group cursor-pointer bg-surface-container-low border border-surface-variant hover:border-primary transition-all duration-300 p-base ice-shimmer">
+<div class="flex flex-col items-center justify-center py-base">
+<img alt="Celtics" class="h-20 w-20 object-contain group-hover:scale-105 transition-transform" data-alt="The Boston Celtics logo presented as a sleek, 3D icon on a polished dark surface. The green and gold colors are vibrant against a pitch-black background with a cold, blue-toned rim light. Minimalist sports graphic style with sharp metallic edges and high contrast, reflecting a high-stakes arena environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPFDWNm4nF4gns87HHtR_3yoU6liKF99kvIpXqlOdplp1u9TyDiiV12-b6xsBiO_gl5SCmTq2l7LIeJinNDlNcEGo4zocZExWnt_mqe9ywQACfDqVOWO5Gk69BIqjdBIdJyorGO82R2UGr1A-mDeudcsV6-2F-GNAmqLyiZSwGripH0inIbtWgCkfOrLFyBnnMGTUBQGGJ3mkjx_hIet22aqdmB2BjNKnPzEi2eXTvVd81SuzsedGAZ-2Vm2TVvvIVapqoi_SZevYY"/>
+<h3 class="font-headline-md text-headline-md text-primary mt-4 uppercase">CELTICS</h3>
+<p class="font-stat-numeric text-stat-numeric text-on-surface-variant">64 - 18</p>
+</div>
+<div class="w-full h-1 bg-surface-variant mt-2 overflow-hidden">
+<div class="h-full bg-primary w-full"></div>
+</div>
+</div>
+<!-- Team Card 3 (Nuggets) -->
+<div class="group cursor-pointer bg-surface-container-low border border-surface-variant hover:border-primary transition-all duration-300 p-base ice-shimmer">
+<div class="flex flex-col items-center justify-center py-base">
+<img alt="Nuggets" class="h-20 w-20 object-contain group-hover:scale-105 transition-transform" data-alt="A crisp Denver Nuggets logo isolated in a high-contrast cinematic sports layout. The blue and gold team colors are rendered with a metallic sheen under cool white arena lighting. The composition is clean and aggressive, emphasizing the pickaxe elements of the logo, set against a dark industrial steel texture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC67mZSApzRxRQs7AyMx213HiIuMYYHGIdPS-4OdHFqzEULtx5UyeK00SxwnKFqj5s1GKNKPMw6CatD3YINIqEpQkYTEFcE6tVnASTgsAifPZ5YCtfkWNpBC9jM_A7fUTw_TMHWYThFbsS4uLiYerfOYkBkBvKcybmPunDAAtdnFax-XjdDIq2Ks7Qae-3QH4BUWLZpXUjeodDkBea0Vjte6eojeOciIVUxcPSg-CMpATo5AUNqDMBZNPBDPmTw7x6Di9TorMsh_aDT"/>
+<h3 class="font-headline-md text-headline-md text-primary mt-4 uppercase">NUGGETS</h3>
+<p class="font-stat-numeric text-stat-numeric text-on-surface-variant">57 - 25</p>
+</div>
+<div class="w-full h-1 bg-surface-variant mt-2 overflow-hidden">
+<div class="h-full bg-primary w-[85%]"></div>
+</div>
+</div>
+<!-- Team Card 4 (Warriors) -->
+<div class="group cursor-pointer bg-surface-container-low border border-surface-variant hover:border-primary transition-all duration-300 p-base ice-shimmer">
+<div class="flex flex-col items-center justify-center py-base">
+<img alt="Warriors" class="h-20 w-20 object-contain group-hover:scale-105 transition-transform" data-alt="The Golden State Warriors bridge logo displayed with high-intensity lighting in a dark sports gallery. The blue and yellow hues are saturated and pop against the deep charcoal background. The image has a futuristic feel with subtle light streaks suggesting speed and precision, maintaining a professional corporate sports aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLBeY-MsvozggJQfrpCzpHfGlRSytAboPplbchyWI54vwVPuGX6lVRNIQ-zCuMNOzALAvHEhcaLWR2PuMBJf1m21FIOZcxsHu6Tm6KPoXk7nfYgFfw6SKl9PoDen7NFoOaLhMS6KuZmlvoQF8WtCPzrEdst5KKBVDS1RdY5z_M5W8Wu4lmv45vlgcyoIjMyH1IZ17hy6L5evy6_3etGw2B6QfYPOCZvkTLVOkENDljMJca1fjdaD-hCvuY9x44C7i80rgk2-5TWT0t"/>
+<h3 class="font-headline-md text-headline-md text-primary mt-4 uppercase">WARRIORS</h3>
+<p class="font-stat-numeric text-stat-numeric text-on-surface-variant">46 - 36</p>
+</div>
+<div class="w-full h-1 bg-surface-variant mt-2 overflow-hidden">
+<div class="h-full bg-primary w-[70%]"></div>
+</div>
+</div>
+<!-- Team Card 5 (Suns) -->
+<div class="group cursor-pointer bg-surface-container-low border border-surface-variant hover:border-primary transition-all duration-300 p-base ice-shimmer">
+<div class="flex flex-col items-center justify-center py-base">
+<img alt="Suns" class="h-20 w-20 object-contain group-hover:scale-105 transition-transform" data-alt="A Phoenix Suns basketball logo presented with a dramatic, high-contrast spotlight. The orange and purple colors are deep and rich, set against a textured black background that looks like carbon fiber. The lighting is harsh and clinical, reflecting off the logo's surface like polished metal in a professional sports environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsTHltjRQ1oSVixNN1Ee0HnCfMvCI4kxjSbbsDm2hvj8ulY4HCM8AG6CC7juprY1oSnYiL1QXC2-e_Cqv3FQaONASXq9Bcx8KDEJZQHc-4N6mcwwBmf3ibMLl2TfvLjuVUziaF0vXnyEbCexhGvZOTkI8SzzVpCOUaJuAIPLzOS148-rzz_6nqT2XZIaqzSEYYJzuf1LBRpVnUngQBj1rcNpe_jRSlgW6Z5pfGxiElM2oLaKDIlCyLY8_7Cnyw_c7TrRntRY7cyVft"/>
+<h3 class="font-headline-md text-headline-md text-primary mt-4 uppercase">SUNS</h3>
+<p class="font-stat-numeric text-stat-numeric text-on-surface-variant">49 - 33</p>
+</div>
+<div class="w-full h-1 bg-surface-variant mt-2 overflow-hidden">
+<div class="h-full bg-primary w-[75%]"></div>
+</div>
+</div>
+</div>
+<!-- Roster Detail View (Initially Hidden) -->
+<section class="hidden mt-lg animate-in slide-in-from-bottom duration-500" id="roster-view">
+<div class="flex items-center gap-4 mb-base">
+<button class="flex items-center text-on-surface-variant hover:text-primary transition-colors" onclick="hideRoster()">
+<span class="material-symbols-outlined">arrow_back</span>
+<span class="font-label-caps text-label-caps ml-2">BACK TO TEAMS</span>
+</button>
+</div>
+<div class="bg-surface-container-low border border-surface-variant p-md">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-lg gap-4">
+<div class="flex items-center gap-6">
+<div class="h-24 w-24 bg-surface-container rounded-lg p-2 flex items-center justify-center border border-primary/20" id="roster-team-badge">
+<img alt="Team" class="h-full w-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUFq-_FLVQhPPxU0H2HLDVvtT7TihwVeVSnckEAjhbqCrvOI8htWNlogxqbW8NRCigxWg7CXmblCNh7rgpkM1oUg9ye7yOp-G77srXkGBGhLplDPKQJMSTvsp9zl3lmulERRGSCxG6dZ5AiGkc4OdA42CmGOhm3bSaLrdg7uL6ZkliQFTcKrNueLqC53raLoRVKcT0vWjgDt8Lq48FUOd8-EKOSDL1RGvA9dlfzPQ5GIEKi8Kj76vpE59pHfzOdmMcZiTlRUIYPTmC"/>
+</div>
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary uppercase" id="roster-team-name">LOS ANGELES LAKERS</h2>
+<p class="font-body-md text-on-surface-variant">Team Roster | Western Conference</p>
+</div>
+</div>
+<div class="bg-surface-container-high px-md py-sm border-l-2 border-primary">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase">Normalized Player Power Rating</p>
+<p class="text-[10px] text-outline max-w-[200px] leading-tight">Scores are calculated and normalized by position (Guard, Forward, Center) to reflect true relative impact on court performance.</p>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full border-collapse">
+<thead>
+<tr class="bg-surface-container border-b border-surface-variant">
+<th class="text-left font-label-caps text-label-caps text-on-surface-variant p-4">PLAYER / POS</th>
+<th class="text-center font-label-caps text-label-caps text-on-surface-variant p-4">POWER SCORE</th>
+<th class="text-right font-label-caps text-label-caps text-on-surface-variant p-4">GP</th>
+<th class="text-right font-label-caps text-label-caps text-on-surface-variant p-4">PTS</th>
+<th class="text-right font-label-caps text-label-caps text-on-surface-variant p-4">AST</th>
+<th class="text-right font-label-caps text-label-caps text-on-surface-variant p-4">TRB</th>
+<th class="text-right font-label-caps text-label-caps text-on-surface-variant p-4">STATUS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant">
+<!-- Player Row 1 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container-highest rounded-full overflow-hidden border border-outline">
+<img alt="Lebron" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJCSJcDAr7Scq3VcNtoryhfGQOrfZ5Q7uO4M9GmC8m0RqLZ7mVF3w6HbGXlvDDwg0qHPwGJO5MuvLUMebJl2sBxIP3ENkqjLwi_Q_bC0RrhKAC7gDs5XfRK4DyRHNV2Y0MwGhzMv9UTxuWMN6vVJn9v5TM-vmX4oohGPhkU3KZVGvQ1ig9-yChR8tyHTrCrO4fa35n8cXTX9VZQ2TLRWxxBweyLLTyPdu8Ia89w85vKwI-WbHHV3C3G5vZdziMaikIefMhNCiVD8-3"/>
+</div>
+<div>
+<p class="font-headline-md text-[18px] text-primary">LEBRON JAMES</p>
+<p class="font-label-caps text-[12px] text-on-surface-variant">FORWARD (F)</p>
+</div>
+</div>
+</td>
+<td class="p-4 text-center">
+<div class="inline-flex items-center justify-center h-14 w-14 rounded-lg bg-primary metallic-gradient border-2 border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+<span class="font-display-lg text-[28px] text-on-primary">96</span>
+</div>
+</td>
+<td class="p-4 text-right font-stat-numeric">71</td>
+<td class="p-4 text-right font-stat-numeric">25.7</td>
+<td class="p-4 text-right font-stat-numeric">8.3</td>
+<td class="p-4 text-right font-stat-numeric">7.3</td>
+<td class="p-4 text-right">
+<span class="px-2 py-1 bg-surface-container text-primary font-label-caps text-[10px] border border-primary/30">ACTIVE</span>
+</td>
+</tr>
+<!-- Player Row 2 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container-highest rounded-full overflow-hidden border border-outline">
+<img alt="Davis" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfA2Iskke36cx7rbf4dD2vva2m_EMKvqmgqh3DEIZnzWvyHAK34BAbsMT3jgXIPSE3tPaknXHH0G1UYotVaZe0-Y_jMZY5NGZBUE_7WDjbOCp2kyqiKs2UTrEjqyRMh3sPRQJ3CiIS3LR6cnZSrzn0SmHeOYh2bHwUvKOwo_Z62x-2lY166miaJQA_rWg2uavf4rJcZ1qk4XTCPdaI7O4YCoT3FFvTmdhLvvNDpljLY7IUxPJMTnKtdbbV9BECpVQIZw5BQKAILmG-"/>
+</div>
+<div>
+<p class="font-headline-md text-[18px] text-primary">ANTHONY DAVIS</p>
+<p class="font-label-caps text-[12px] text-on-surface-variant">CENTER (C)</p>
+</div>
+</div>
+</td>
+<td class="p-4 text-center">
+<div class="inline-flex items-center justify-center h-14 w-14 rounded-lg bg-surface-container-highest border border-outline">
+<span class="font-display-lg text-[28px] text-primary">94</span>
+</div>
+</td>
+<td class="p-4 text-right font-stat-numeric">76</td>
+<td class="p-4 text-right font-stat-numeric">24.7</td>
+<td class="p-4 text-right font-stat-numeric">3.5</td>
+<td class="p-4 text-right font-stat-numeric">12.6</td>
+<td class="p-4 text-right">
+<span class="px-2 py-1 bg-surface-container text-primary font-label-caps text-[10px] border border-primary/30">ACTIVE</span>
+</td>
+</tr>
+<!-- Player Row 3 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container-highest rounded-full overflow-hidden border border-outline">
+<img alt="Russell" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEzf0OPbu3L16NxiRoMnQ8oaKRrjtowINu0TsjscDSXu3pzbWlP389-LYWFXFY9TSHyP1F5egZ28xUadObU9PhauUzNcrSl_ZppDSJE4Zie3vy7GGMW0PntmD1zK-9erNkDqva8mRxYXq-8CT-CBYmRknSO9CMmT2ZO6jKO5KgZJr10udvVa4GFhYkluLFsEuI6z8C4zDC1xp34qZOQuufbv4Gc-HfYnZsMuIcJ09Zqi31SdRxtlJ4Guv9FXYnmDh1wjL3TE8AWIlz"/>
+</div>
+<div>
+<p class="font-headline-md text-[18px] text-primary">D'ANGELO RUSSELL</p>
+<p class="font-label-caps text-[12px] text-on-surface-variant">GUARD (G)</p>
+</div>
+</div>
+</td>
+<td class="p-4 text-center">
+<div class="inline-flex items-center justify-center h-14 w-14 rounded-lg bg-surface-container-highest border border-outline">
+<span class="font-display-lg text-[28px] text-primary">82</span>
+</div>
+</td>
+<td class="p-4 text-right font-stat-numeric">76</td>
+<td class="p-4 text-right font-stat-numeric">18.0</td>
+<td class="p-4 text-right font-stat-numeric">6.3</td>
+<td class="p-4 text-right font-stat-numeric">3.1</td>
+<td class="p-4 text-right">
+<span class="px-2 py-1 bg-surface-container text-outline font-label-caps text-[10px] border border-outline-variant">RESTING</span>
+</td>
+</tr>
+<!-- Player Row 4 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container-highest rounded-full overflow-hidden border border-outline">
+<img alt="Reaves" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSC3uacFSQfBxOIq6rfugqyEzZBRF0Fp_J2CI3yafJ3WImG4JfK5tah9LkSu5TBHsdXI70Lu8BWEn0L2T0BuiyWCJS_FXaPwXpstz3v7hMTJ-LKfRjhmHO6HfOjkewuBzEVfOY2ViXZLzvaOU7PzFRCNZn1IHhrWUA2z0ETD7Ey0L9wdyQuLq3l46VnXajF7cVh0ckgielIwjoarFyqUzmj4c7TrD5NoyKTNLVxH1zU7OphvOinhQmo8DkvFEqR4qPQUj8Ia-vhCB1"/>
+</div>
+<div>
+<p class="font-headline-md text-[18px] text-primary">AUSTIN REAVES</p>
+<p class="font-label-caps text-[12px] text-on-surface-variant">GUARD (G)</p>
+</div>
+</div>
+</td>
+<td class="p-4 text-center">
+<div class="inline-flex items-center justify-center h-14 w-14 rounded-lg bg-surface-container-highest border border-outline">
+<span class="font-display-lg text-[28px] text-primary">79</span>
+</div>
+</td>
+<td class="p-4 text-right font-stat-numeric">82</td>
+<td class="p-4 text-right font-stat-numeric">15.9</td>
+<td class="p-4 text-right font-stat-numeric">5.5</td>
+<td class="p-4 text-right font-stat-numeric">4.3</td>
+<td class="p-4 text-right">
+<span class="px-2 py-1 bg-surface-container text-primary font-label-caps text-[10px] border border-primary/30">ACTIVE</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-safe bg-surface-container border-t border-surface-variant md:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps mt-1">DASHBOARD</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-lg px-4 py-1 scale-95" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-label-caps text-label-caps mt-1">TEAMS</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-caps text-label-caps mt-1">PLAYERS</span>
+</a>
+</nav>
+<!-- Drawer (Desktop Hidden by default, script could toggle) -->
+<div class="fixed inset-y-0 left-0 z-[60] flex flex-col w-80 bg-surface-container-low border-r border-surface-variant -translate-x-full transition-transform duration-300" id="side-drawer">
+<div class="p-6 border-b border-surface-variant flex items-center gap-4">
+<div class="h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary">person</span>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-primary uppercase">ANALYST PRO</h3>
+<p class="text-[10px] text-on-surface-variant">v4.2.0 PREMIUM</p>
+</div>
+</div>
+<div class="py-4">
+<nav class="flex flex-col">
+<a class="text-on-surface-variant hover:bg-surface-container px-4 py-3 flex items-center gap-3 transition-colors" href="#">
+<span class="material-symbols-outlined">format_list_numbered</span>
+<span class="font-label-caps text-label-caps">SEASON STANDINGS</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container px-4 py-3 flex items-center gap-3 transition-colors" href="#">
+<span class="material-symbols-outlined">workspace_premium</span>
+<span class="font-label-caps text-label-caps">LEAGUE LEADERS</span>
+</a>
+<a class="bg-surface-container-highest text-primary border-l-4 border-primary px-4 py-3 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="font-label-caps text-label-caps">TEAM ROSTERS</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container px-4 py-3 flex items-center gap-3 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps">SETTINGS</span>
+</a>
+</nav>
+</div>
+</div>
+<script>
+        function showRoster(teamName, teamCode) {
+            document.getElementById('teams-grid').classList.add('hidden');
+            document.getElementById('roster-view').classList.remove('hidden');
+            document.getElementById('roster-team-name').textContent = teamName.toUpperCase();
+            
+            // Scroll to top of roster
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function hideRoster() {
+            document.getElementById('roster-view').classList.add('hidden');
+            document.getElementById('teams-grid').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Drawer toggle logic
+        document.querySelector('header button:first-child').addEventListener('click', () => {
+            const drawer = document.getElementById('side-drawer');
+            drawer.classList.toggle('-translate-x-full');
+        });
+
+        // Close drawer when clicking outside
+        document.addEventListener('click', (e) => {
+            const drawer = document.getElementById('side-drawer');
+            const menuBtn = document.querySelector('header button:first-child');
+            if (!drawer.contains(e.target) && !menuBtn.contains(e.target) && !drawer.classList.contains('-translate-x-full')) {
+                drawer.classList.add('-translate-x-full');
+            }
+        });
+    </script>
+</body></html>

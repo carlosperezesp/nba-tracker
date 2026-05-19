@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Courtside Analytics | NBA Live</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; --ink:#111827; --muted:#667085; --line:rgba(17,24,39,.12); --nba-red:#c9082a; --nba-blue:#17408b; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100dvh; color:var(--ink); font-family:Inter,system-ui,sans-serif; background:#f7f8fb; }
+    body:before { content:""; position:fixed; inset:0; z-index:-1; background:
+      radial-gradient(circle at 18% 0%, rgba(201,8,42,.10), transparent 28rem),
+      radial-gradient(circle at 88% 0%, rgba(23,64,139,.12), transparent 31rem),
+      linear-gradient(135deg, #ffffff 0%, #f3f6fb 50%, #edf1f7 100%); }
+    .display { font-family:"Barlow Condensed",Inter,sans-serif; letter-spacing:0; }
+    .panel { background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.78)); border:1px solid var(--line); border-radius:8px; box-shadow:0 18px 45px rgba(20,31,54,.10); }
+    .glass { background:rgba(255,255,255,.88); border:1px solid var(--line); backdrop-filter:blur(18px); }
+    .nba-gradient { background:linear-gradient(90deg, var(--nba-blue), #ffffff 45%, var(--nba-red)); }
+    .tab.active, .conf-tab.active { background:#111827; color:#fff; border-color:#111827; }
+    .subtab.active { background:var(--nba-red); border-color:var(--nba-red); color:#fff; }
+    .row:nth-child(even) { background:rgba(17,24,39,.035); }
+    .row.clickable { cursor:pointer; }
+    .row.clickable:hover { background:rgba(23,64,139,.08); }
+    .team-card:hover { transform:translateY(-2px); border-color:rgba(23,64,139,.46); }
+    .court-lines { background-image:linear-gradient(rgba(17,24,39,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(17,24,39,.06) 1px, transparent 1px); background-size:42px 42px; }
+    .bar-track { background:#e5e7eb; border-radius:999px; height:8px; overflow:hidden; }
+    .bar-fill { background:linear-gradient(90deg, var(--nba-blue), var(--nba-red)); height:100%; }
+  </style>
+</head>
+<body>
+  <header class="sticky top-0 z-40 glass">
+    <div class="nba-gradient h-1"></div>
+    <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
+      <div>
+        <p class="display text-sm font-bold uppercase tracking-[.22em] text-[#667085]">NBA analytics live</p>
+        <h1 class="display text-4xl font-black uppercase leading-none md:text-6xl">Courtside</h1>
+      </div>
+      <nav class="flex flex-wrap gap-2">
+        <button class="tab active rounded border border-black/15 px-3 py-2 text-xs font-black uppercase tracking-wide" data-view="home">Resultados</button>
+        <button class="tab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase tracking-wide" data-view="teams">Equipos</button>
+        <button class="tab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase tracking-wide" data-view="players">Jugadores</button>
+        <button class="tab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase tracking-wide" data-view="ranking">Ranking</button>
+        <button class="tab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase tracking-wide" data-view="historia">Historia</button>
+      </nav>
+      <div class="text-left md:text-right">
+        <p id="season-label" class="display text-xl font-bold uppercase">NBA</p>
+        <p id="updated-label" class="text-xs font-bold uppercase tracking-wide text-[#667085]">Sincronizando</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 py-5 md:px-8">
+    <section id="view-home" class="view grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+      <div class="panel overflow-hidden">
+        <div class="flex items-end justify-between border-b border-black/10 p-4">
+          <div><p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Live scoreboard</p><h2 class="display text-4xl font-black uppercase">Resultados</h2></div>
+          <button id="refresh-btn" class="rounded border border-black/20 px-3 py-2 text-xs font-black uppercase hover:bg-[#111827] hover:text-white">Actualizar</button>
+        </div>
+        <div id="scoreboard" class="grid gap-3 p-4 xl:grid-cols-2"></div>
+      </div>
+      <div class="panel overflow-hidden">
+        <div class="border-b border-black/10 p-4"><p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Postseason</p><h2 class="display text-4xl font-black uppercase">Playoff picture</h2></div>
+        <div id="playoffs" class="grid gap-3 p-4"></div>
+      </div>
+      <div class="panel overflow-hidden lg:col-span-2">
+        <div class="flex flex-col gap-3 border-b border-black/10 p-4 md:flex-row md:items-end md:justify-between">
+          <div><p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Regular season</p><h2 class="display text-4xl font-black uppercase">Standings</h2></div>
+          <div class="grid grid-cols-2 gap-2">
+            <button data-conf="east" class="conf-tab active rounded border border-white px-5 py-2 text-xs font-black uppercase">Este</button>
+            <button data-conf="west" class="conf-tab rounded border border-black/20 px-5 py-2 text-xs font-black uppercase">Oeste</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full min-w-[760px] text-left"><thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Seed</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right">W-L</th><th class="px-4 py-3 text-right">PCT</th><th class="px-4 py-3 text-right">GB</th><th class="px-4 py-3 text-right">L10</th><th class="px-4 py-3 text-right">STRK</th><th class="px-4 py-3 text-right">DIFF</th></tr></thead><tbody id="standings-body" class="display text-xl"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="view-teams" class="view hidden grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
+      <div class="panel overflow-hidden">
+        <div class="border-b border-black/10 p-4"><p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Franquicias</p><h2 class="display text-4xl font-black uppercase">Equipos</h2></div>
+        <div id="teams-grid" class="grid grid-cols-2 gap-3 p-4 md:grid-cols-3"></div>
+      </div>
+      <div class="panel overflow-hidden">
+        <div id="team-hero" class="court-lines border-b border-black/10 p-4"></div>
+        <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-left"><thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Jugador</th><th class="px-4 py-3">POS</th><th class="px-4 py-3 text-right">Score</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">PER</th></tr></thead><tbody id="roster-body" class="display text-xl"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="view-players" class="view hidden grid gap-4">
+      <div class="panel overflow-hidden">
+        <div class="flex flex-col gap-4 border-b border-black/10 p-4 md:flex-row md:items-end md:justify-between">
+          <div><p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">League leaders</p><h2 class="display text-4xl font-black uppercase">Rankings de jugadores</h2></div>
+          <div id="ranking-tabs" class="grid grid-cols-3 gap-2 md:grid-cols-6"></div>
+        </div>
+        <div id="players-status" class="p-4 text-sm font-semibold uppercase tracking-wide text-[#667085]">Carga la pestaña para generar rankings con rosters actuales.</div>
+        <div id="rankings-grid" class="grid gap-4 p-4 xl:grid-cols-[1.15fr_.85fr]"></div>
+      </div>
+    </section>
+
+    <section id="view-ranking" class="view hidden grid gap-4">
+      <div class="panel overflow-hidden">
+        <div class="flex flex-col gap-4 border-b border-black/10 p-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Power rankings</p>
+            <h2 class="display text-4xl font-black uppercase">Ranking por Equipos</h2>
+            <p class="mt-1 text-xs font-semibold text-[#667085]">Score promedio de jugadores de rotación. Solo jugadores con estadísticas reales de la temporada actual.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-bold uppercase text-[#667085]">Mínimo para clasificar:</span>
+            <div class="flex gap-2" id="min-filter-tabs">
+              <button class="min-tab active rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-min="15" data-gp="20">≥15 MPG / ≥20 PJ</button>
+              <button class="min-tab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-min="25" data-gp="30">≥25 MPG / ≥30 PJ</button>
+              <button class="min-tab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-min="0" data-gp="1">Todos con stats</button>
+            </div>
+          </div>
+        </div>
+        <div id="ranking-status" class="p-4 text-sm font-semibold uppercase tracking-wide text-[#667085]">Carga la pestaña para generar el ranking de equipos.</div>
+        <div id="team-ranking-grid" class="p-4"></div>
+      </div>
+    </section>
+
+    <section id="view-historia" class="view hidden grid gap-4">
+      <div class="panel overflow-hidden">
+        <div class="flex flex-col gap-4 border-b border-black/10 p-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">All-Time Rankings</p>
+            <h2 class="display text-4xl font-black uppercase">Hall of Fame</h2>
+            <p class="mt-1 text-xs font-semibold text-[#667085]">Score era-ajustado · jugadores, equipos y partidos de toda la historia NBA.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap" id="historia-tabs">
+            <button class="htab active rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-ht="seasons">Temporadas</button>
+            <button class="htab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-ht="careers">Carreras</button>
+            <button class="htab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-ht="teams">Equipos</button>
+            <button class="htab rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-ht="games">Partidos</button>
+          </div>
+        </div>
+        <div id="historia-status" class="p-4 text-sm font-semibold uppercase tracking-wide text-[#667085]">Cargando datos históricos…</div>
+        <div id="historia-content" class="p-4"></div>
+      </div>
+    </section>
+
+    <section id="player-detail" class="panel mt-4 hidden overflow-hidden">
+      <div id="player-detail-body"></div>
+    </section>
+  </main>
+
+  <script>
+    const state = { view:"home", conference:"east", ranking:"score", minMPG:15, standings:{east:[],west:[]}, teams:[], scoreboard:[], rosters:{}, playerStats:{}, playerHistory:{}, allPlayers:[] };
+    const rankingDefs = [
+      ["score","Global"],["pts","PTS"],["reb","REB"],["ast","AST"],["per","PER"],["stl","STL"]
+    ];
+    const $ = (id) => document.getElementById(id);
+    const getJSON = async (url) => { const r = await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(`${url} ${r.status}`); return r.json(); };
+    const statValue = (entry,key) => entry.stats?.find(s => s.name===key || s.type===key)?.displayValue ?? entry.stats?.find(s => s.name===key || s.type===key)?.summary ?? "-";
+    const numericStat = (entry,key) => Number(entry.stats?.find(s => s.name===key || s.type===key)?.value ?? 0);
+    const fmtTime = (iso) => new Intl.DateTimeFormat("es-ES",{dateStyle:"medium",timeStyle:"short"}).format(new Date(iso));
+    const money = (v) => v ? `$${Math.round(v/1000000)}M` : "-";
+    const cleanHex = (hex) => `#${(hex || "17408b").replace("#","")}`;
+    const eraContext = {
+      1980:.72, 1981:.73, 1982:.73, 1983:.74, 1984:.75, 1985:.76, 1986:.77, 1987:.78, 1988:.79, 1989:.79,
+      1990:.80, 1991:.80, 1992:.79, 1993:.80, 1994:.79, 1995:.78, 1996:.78, 1997:.78, 1998:.76, 1999:.74,
+      2000:.76, 2001:.76, 2002:.76, 2003:.77, 2004:.76, 2005:.77, 2006:.80, 2007:.82, 2008:.82, 2009:.82,
+      2010:.82, 2011:.81, 2012:.83, 2013:.86, 2014:.87, 2015:.87,
+      2016:.94, 2017:.95, 2018:.96, 2019:.97, 2020:.99, 2021:1.00, 2022:1.01, 2023:1.03, 2024:1.05, 2025:1.05, 2026:1.06
+    };
+
+    function flatStats(stats) {
+      const out = {};
+      stats?.splits?.categories?.forEach(cat => cat.stats?.forEach(s => out[s.name] = { value:Number(s.value ?? 0), display:s.displayValue ?? String(s.value ?? "-") }));
+      return out;
+    }
+
+    function getPlayerMetric(player, key) {
+      const s = player.statsFlat || {};
+      const map = { pts:"avgPoints", reb:"avgRebounds", ast:"avgAssists", per:"PER", stl:"avgSteals", blk:"avgBlocks" };
+      return Number(s[map[key]]?.value ?? 0);
+    }
+
+    function calcScore(player, teamEntry) {
+      const pts = getPlayerMetric(player,"pts"), reb = getPlayerMetric(player,"reb"), ast = getPlayerMetric(player,"ast"), per = getPlayerMetric(player,"per"), stl = getPlayerMetric(player,"stl");
+      if (pts || reb || ast || per) return Math.max(1, Math.min(100, Math.round(pts*1.75 + reb*1.15 + ast*1.35 + stl*4 + per*1.1)));
+      const salary = player.contract?.salary || player.contracts?.[0]?.salary || 0;
+      const exp = player.experience?.years || 0;
+      const prime = Math.max(0, 12 - Math.abs((player.age || 27) - 27));
+      const teamBoost = teamEntry ? numericStat(teamEntry,"winPercent") * 14 : 6;
+      const injuryPenalty = player.injuries?.length ? 8 : 0;
+      return Math.max(1, Math.min(100, Math.round((Math.log10(salary + 1) - 5) * 12 + exp * 2.2 + prime * 2 + teamBoost - injuryPenalty)));
+    }
+
+    function calcBoxScore(stats) {
+      const raw = stats.pts * 1.7 + stats.reb * 1.08 + stats.ast * 1.28 + stats.stl * 4 + stats.blk * 3 + stats.fgPct * .10 + stats.threePct * .045 + stats.min * .20 - stats.to * 1.15;
+      return Math.max(1, raw);
+    }
+
+    function parseSeasonHistory(payload) {
+      const averages = payload.categories?.find(c => c.name === "averages");
+      if (!averages) return [];
+      const names = averages.names ?? [];
+      const rows = averages.statistics ?? [];
+      const idx = (name) => names.indexOf(name);
+      const num = (row, name) => Number(row.stats?.[idx(name)] ?? 0);
+      const seasons = rows
+        .filter(row => !row.displayName?.includes("Totals"))
+        .map(row => {
+          const stats = {
+            gp: num(row, "gamesPlayed"),
+            min: num(row, "avgMinutes"),
+            pts: num(row, "avgPoints"),
+            reb: num(row, "avgRebounds"),
+            ast: num(row, "avgAssists"),
+            stl: num(row, "avgSteals"),
+            blk: num(row, "avgBlocks"),
+            to: num(row, "avgTurnovers"),
+            fgPct: num(row, "fieldGoalPct"),
+            threePct: num(row, "threePointFieldGoalPct"),
+          };
+          const raw = calcBoxScore(stats);
+          const year = row.season?.year;
+          const context = eraContext[year] ?? 1;
+          return { ...row, year, label: row.season?.displayName ?? year, stats, raw, adjusted: raw / context };
+        })
+        .filter(row => row.stats.gp > 0);
+      const maxAdjusted = Math.max(...seasons.map(s => s.adjusted), 1);
+      return seasons.map(row => ({ ...row, normalized: Math.round((row.adjusted / maxAdjusted) * 100), rawScore: Math.round(Math.min(100, row.raw)), adjustedScore: Math.round(row.adjusted) }));
+    }
+
+    function teamStanding(abbr) {
+      return [...state.standings.east, ...state.standings.west].find(e => e.team?.abbreviation === abbr);
+    }
+
+    async function loadCore() {
+      const [scoreboard, standings, teams] = await Promise.all([getJSON("/api/scoreboard"), getJSON("/api/standings"), getJSON("/api/teams")]);
+      state.scoreboard = scoreboard.events ?? [];
+      const children = standings.children ?? [];
+      state.standings.east = children.find(c => c.abbreviation==="East")?.standings?.entries ?? [];
+      state.standings.west = children.find(c => c.abbreviation==="West")?.standings?.entries ?? [];
+      state.teams = teams.sports?.[0]?.leagues?.[0]?.teams?.map(t => t.team).sort((a,b)=>a.displayName.localeCompare(b.displayName)) ?? [];
+      $("season-label").textContent = scoreboard.leagues?.[0]?.season?.displayName ?? teams.sports?.[0]?.leagues?.[0]?.season?.displayName ?? "NBA";
+      renderHome(); renderTeams();
+      $("updated-label").textContent = `Actualizado ${new Intl.DateTimeFormat("es-ES",{timeStyle:"medium"}).format(new Date())}`;
+    }
+
+    function renderHome() { renderScoreboard(); renderPlayoffs(); renderStandings(); }
+
+    function renderScoreboard() {
+      $("scoreboard").innerHTML = state.scoreboard.length ? state.scoreboard.map(event => {
+        const competition = event.competitions?.[0] ?? {}, teams = competition.competitors ?? [];
+        const stateName = event.status?.type?.state, status = event.status?.type?.shortDetail ?? "Programado";
+        return `<article class="rounded border border-black/10 bg-white p-4"><div class="mb-3 flex items-center justify-between"><span class="rounded px-2 py-1 text-[11px] font-black uppercase ${stateName==="in" ? "bg-[#c9082a] text-white" : "bg-black/5 text-[#667085]"}">${status}</span><span class="text-xs font-bold uppercase text-[#667085]">${fmtTime(event.date)}</span></div>${teams.map(c => `<div class="display flex items-center justify-between gap-3 py-2 text-2xl font-bold uppercase ${c.winner ? "text-[#111827]" : "text-[#475467]"}"><span class="flex min-w-0 items-center gap-3"><img class="h-9 w-9 object-contain" src="${c.team?.logo ?? ""}" alt=""><span class="truncate">${c.team?.shortDisplayName}</span></span><span class="text-4xl">${c.score ?? "-"}</span></div>`).join("")}<a class="mt-2 inline-block text-xs font-bold uppercase tracking-wide text-[#667085] hover:text-[#111827]" href="${event.links?.[0]?.href ?? "#"}" target="_blank" rel="noreferrer">Gamecast</a></article>`;
+      }).join("") : `<div class="rounded border border-black/10 p-4 text-[#667085]">No hay partidos en la ventana actual.</div>`;
+    }
+
+    function renderPlayoffs() {
+      const games = state.scoreboard.filter(e => e.season?.type === 3 || e.season?.slug?.includes("post"));
+      $("playoffs").innerHTML = games.length ? games.map(e => {
+        const comp = e.competitions?.[0] ?? {}, teams = comp.competitors ?? [];
+        return `<div class="rounded border border-black/10 bg-white p-4"><p class="display text-sm font-bold uppercase text-[#667085]">${e.shortName} · ${e.status?.type?.shortDetail ?? ""}</p><div class="mt-3 grid gap-2">${teams.map(c => `<div class="flex items-center justify-between rounded bg-black/5 p-2"><span class="display text-xl font-bold uppercase">${c.curatedRank?.current ? `#${c.curatedRank.current} ` : ""}${c.team?.shortDisplayName}</span><span class="display text-2xl font-black">${c.score ?? "-"}</span></div>`).join("")}</div></div>`;
+      }).join("") : `<div class="text-sm font-semibold uppercase tracking-wide text-[#667085]">ESPN no devuelve partidos de playoff para esta fecha.</div>`;
+    }
+
+    function renderStandings() {
+      $("standings-body").innerHTML = (state.standings[state.conference] ?? []).map((entry, i) => `<tr class="row border-b border-black/10"><td class="px-4 py-3 text-[#667085]">${statValue(entry,"playoffSeed") || i+1}</td><td class="px-4 py-3"><div class="flex items-center gap-3"><img class="h-8 w-8 object-contain" src="${entry.team?.logos?.[0]?.href ?? ""}" alt=""><span>${entry.team?.displayName}</span></div></td><td class="px-4 py-3 text-right">${statValue(entry,"overall")}</td><td class="px-4 py-3 text-right">${statValue(entry,"winPercent")}</td><td class="px-4 py-3 text-right">${statValue(entry,"gamesBehind")}</td><td class="px-4 py-3 text-right">${statValue(entry,"lasttengames")}</td><td class="px-4 py-3 text-right">${statValue(entry,"streak")}</td><td class="px-4 py-3 text-right">${statValue(entry,"differential")}</td></tr>`).join("");
+    }
+
+    function renderTeams() {
+      $("teams-grid").innerHTML = state.teams.map(team => {
+        const entry = teamStanding(team.abbreviation), color = cleanHex(team.color);
+        return `<button class="team-card rounded border border-black/10 bg-white p-3 text-left transition" data-team="${team.abbreviation}"><div class="h-1 rounded" style="background:${color}"></div><div class="mt-3 flex items-center gap-3"><img class="h-12 w-12 object-contain" src="${team.logos?.[0]?.href ?? ""}" alt=""><div class="min-w-0"><p class="display truncate text-2xl font-black uppercase">${team.shortDisplayName}</p><p class="text-xs font-bold uppercase text-[#667085]">${statValue(entry || {}, "overall")} · ${team.abbreviation}</p></div></div></button>`;
+      }).join("");
+      $("teams-grid").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => selectTeam(btn.dataset.team)));
+      if (state.teams.length && !$("team-hero").dataset.team) selectTeam(state.teams[0].abbreviation);
+    }
+
+    async function hydrateStats(players, limit = players.length) {
+      const needed = players.filter(p => !state.playerStats[p.id]).slice(0, limit);
+      for (let i = 0; i < needed.length; i += 8) {
+        await Promise.all(needed.slice(i, i+8).map(async p => {
+          try { state.playerStats[p.id] = flatStats(await getJSON(`/api/athlete/${p.id}/stats`)); }
+          catch { state.playerStats[p.id] = {}; }
+        }));
+      }
+      players.forEach(p => p.statsFlat = state.playerStats[p.id] || p.statsFlat || {});
+    }
+
+    async function loadPlayerHistory(player) {
+      if (!state.playerHistory[player.id]) {
+        state.playerHistory[player.id] = parseSeasonHistory(await getJSON(`/api/athlete/${player.id}/history`));
+      }
+      return state.playerHistory[player.id];
+    }
+
+    async function openPlayerDetail(player) {
+      const detail = $("player-detail");
+      const body = $("player-detail-body");
+      detail.classList.remove("hidden");
+      body.innerHTML = `<div class="p-5"><p class="text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Cargando trayectoria</p><h2 class="display text-5xl font-black uppercase">${player.displayName}</h2></div>`;
+      const seasons = await loadPlayerHistory(player);
+      const current = seasons[seasons.length - 1];
+      const best = [...seasons].sort((a,b) => b.normalized - a.normalized)[0];
+      body.innerHTML = `
+        <div class="court-lines border-b border-black/10 p-5">
+          <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-4">
+              <img class="h-24 w-24 rounded bg-black/5 object-cover" src="${player.headshot?.href ?? ""}" alt="">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[.18em] text-[#667085]">${player.teamName ?? player.teamAbbr ?? ""} · ${player.position?.abbreviation ?? ""}</p>
+                <h2 class="display text-5xl font-black uppercase leading-none">${player.displayName}</h2>
+                <p class="mt-2 text-sm font-semibold text-[#667085]">Score promedio normalizado por contexto ofensivo de temporada. 100 = mejor temporada de su propia trayectoria ajustada.</p>
+              </div>
+            </div>
+            <button class="rounded border border-black/15 px-3 py-2 text-xs font-black uppercase hover:bg-[#111827] hover:text-white" onclick="document.getElementById('player-detail').classList.add('hidden')">Cerrar</button>
+          </div>
+          <div class="mt-5 grid gap-3 md:grid-cols-4">
+            ${[["Norm. carrera act.", current?.normalized],["Mejor norm. carrera", best?.normalized],["Temporada top", best?.label],["Score era-ajust. act.", current?.adjustedScore]].map(([label,value]) => `<div class="rounded border border-black/10 bg-white p-3"><p class="text-xs font-black uppercase text-[#667085]">${label}</p><p class="display text-4xl font-black">${value ?? "-"}</p></div>`).join("")}
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[880px] text-left">
+            <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Temporada</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right" title="Normalizado dentro de la carrera del jugador (su mejor temporada era-ajustada = 100)">Norm. carrera</th><th class="px-4 py-3 text-right" title="Box score era-ajustado, comparable entre jugadores y épocas">Era-ajust.</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">STL</th><th class="px-4 py-3 text-right">MIN</th><th class="px-4 py-3 text-right">PJ</th></tr></thead>
+            <tbody class="display text-xl">${seasons.map(season => `<tr class="row border-b border-black/10"><td class="px-4 py-3">${season.label}</td><td class="px-4 py-3 text-[#667085]">${season.teamSlug ?? "-"}</td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-24"><div class="bar-fill" style="width:${season.normalized}%"></div></div><span>${season.normalized}</span></div></td><td class="px-4 py-3 text-right font-black">${season.adjustedScore}</td><td class="px-4 py-3 text-right">${season.stats.pts.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.reb.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.ast.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.stl.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.min.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.gp}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      `;
+      detail.scrollIntoView({ behavior:"smooth", block:"start" });
+    }
+
+    async function loadRoster(abbr) {
+      if (!state.rosters[abbr]) {
+        const data = await getJSON(`/api/roster/${abbr}`);
+        state.rosters[abbr] = (data.athletes ?? []).map(p => ({ ...p, teamAbbr: abbr, teamName: data.team?.displayName, teamColor: data.team?.color, teamLogo: data.team?.logo }));
+      }
+      return state.rosters[abbr];
+    }
+
+    async function selectTeam(abbr) {
+      const team = state.teams.find(t => t.abbreviation === abbr), entry = teamStanding(abbr);
+      $("team-hero").dataset.team = abbr;
+      $("team-hero").innerHTML = `<div class="flex items-center gap-4"><img class="h-20 w-20 object-contain" src="${team?.logos?.[0]?.href ?? ""}" alt=""><div><p class="text-xs font-bold uppercase tracking-[.18em] text-[#667085]">Roster actual · ${statValue(entry || {}, "overall")}</p><h2 class="display text-5xl font-black uppercase leading-none">${team?.displayName}</h2><p class="mt-1 text-sm font-bold uppercase text-[#667085]">Cargando jugadores y estadísticas ESPN...</p></div></div>`;
+      const roster = await loadRoster(abbr);
+      await hydrateStats(roster);
+      roster.forEach(p => p.score = calcScore(p, entry));
+      // If we already have league-wide scores, re-use them for this roster
+      if (state.allPlayers.length) {
+        roster.forEach(p => {
+          const cached = state.allPlayers.find(ap => ap.id === p.id);
+          if (cached?.score) p.score = cached.score;
+        });
+      } else {
+        normalizeLeagueScores(roster);
+      }
+      renderRoster(team, entry, roster.sort((a,b)=>b.score-a.score));
+    }
+
+    function renderRoster(team, entry, roster) {
+      $("team-hero").innerHTML = `<div class="flex items-center gap-4"><img class="h-20 w-20 object-contain" src="${team?.logos?.[0]?.href ?? ""}" alt=""><div><p class="text-xs font-bold uppercase tracking-[.18em] text-[#667085]">${statValue(entry || {}, "overall")} · ${statValue(entry || {}, "streak")} · ${team?.abbreviation}</p><h2 class="display text-5xl font-black uppercase leading-none">${team?.displayName}</h2></div></div>`;
+      $("roster-body").innerHTML = roster.map(p => `<tr class="row clickable border-b border-black/10" data-player="${p.id}"><td class="px-4 py-3"><div class="flex items-center gap-3"><img class="h-10 w-10 rounded bg-black/5 object-cover" src="${p.headshot?.href ?? ""}" alt=""><span>${p.displayName}</span></div></td><td class="px-4 py-3 text-[#667085]">${p.position?.abbreviation ?? "-"}</td><td class="px-4 py-3 text-right"><span class="rounded bg-[#111827] px-2 py-1 text-white">${p.score}</span></td><td class="px-4 py-3 text-right">${p.statsFlat?.avgPoints?.display ?? "-"}</td><td class="px-4 py-3 text-right">${p.statsFlat?.avgRebounds?.display ?? "-"}</td><td class="px-4 py-3 text-right">${p.statsFlat?.avgAssists?.display ?? "-"}</td><td class="px-4 py-3 text-right">${p.statsFlat?.PER?.display ?? "-"}</td></tr>`).join("");
+      $("roster-body").querySelectorAll("[data-player]").forEach(row => row.addEventListener("click", () => openPlayerDetail(roster.find(p => p.id === row.dataset.player))));
+    }
+
+    function normalizeLeagueScores(players) {
+      // Only consider players with real box-score stats (not the salary fallback)
+      const valid = players.filter(p => {
+        const sf = p.statsFlat || {};
+        return Number(sf.avgPoints?.value ?? 0) + Number(sf.avgRebounds?.value ?? 0) > 0;
+      });
+      if (valid.length < 30) return;
+
+      // Store the raw formula value so team-ranking can still use it
+      valid.forEach(p => { p._raw = p.score; });
+
+      // Sort raw scores, use 3rd–97th percentile as the scale bounds to ignore outliers
+      const sorted = valid.map(p => p._raw).sort((a, b) => a - b);
+      const n = sorted.length;
+      const lo  = sorted[Math.floor(n * 0.03)];
+      const hi  = sorted[Math.floor(n * 0.97)];
+      const span = hi - lo || 1;
+
+      // Map to 2–97 so no one sits exactly at 0 or 100, leaving room for all-time scores
+      valid.forEach(p => {
+        p.score = Math.max(2, Math.min(97, Math.round((p._raw - lo) / span * 95 + 2)));
+      });
+    }
+
+    async function loadAllPlayers() {
+      if (state.allPlayers.length) return state.allPlayers;
+      $("players-status").textContent = "Cargando rosters de los 30 equipos...";
+      const batches = [];
+      for (let i = 0; i < state.teams.length; i += 6) batches.push(state.teams.slice(i, i+6));
+      for (const batch of batches) await Promise.all(batch.map(t => loadRoster(t.abbreviation)));
+      state.allPlayers = Object.values(state.rosters).flat();
+      state.allPlayers.forEach(p => p.score = calcScore(p, teamStanding(p.teamAbbr)));
+      const top = [...state.allPlayers].sort((a,b)=>b.score-a.score).slice(0, 120);
+      $("players-status").textContent = "Enriqueciendo rankings con estadísticas individuales ESPN...";
+      await hydrateStats(top, 120);
+      state.allPlayers.forEach(p => p.score = calcScore(p, teamStanding(p.teamAbbr)));
+      normalizeLeagueScores(state.allPlayers);
+      $("players-status").textContent = `${state.allPlayers.length} jugadores · scores normalizados contra la liga.`;
+      return state.allPlayers;
+    }
+
+    function renderRankingTabs() {
+      $("ranking-tabs").innerHTML = rankingDefs.map(([key,label]) => `<button class="subtab ${state.ranking===key ? "active" : ""} rounded border border-black/15 px-3 py-2 text-xs font-black uppercase" data-rank="${key}">${label}</button>`).join("");
+      $("ranking-tabs").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => { state.ranking = btn.dataset.rank; renderPlayers(); }));
+    }
+
+    async function renderPlayers() {
+      renderRankingTabs();
+      await loadAllPlayers();
+      const metric = state.ranking;
+      const ranked = [...state.allPlayers].sort((a,b) => metric === "score" ? b.score - a.score : getPlayerMetric(b, metric) - getPlayerMetric(a, metric)).slice(0, 25);
+      const hero = ranked[0];
+      $("rankings-grid").innerHTML = `<div class="overflow-hidden rounded border border-black/10"><table class="w-full min-w-[740px] text-left"><thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right">Score</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">PER</th></tr></thead><tbody class="display text-xl">${ranked.map((p,i)=>`<tr class="row clickable border-b border-black/10" data-player="${p.id}"><td class="px-4 py-3 text-[#667085]">${i+1}</td><td class="px-4 py-3"><div class="flex items-center gap-3"><img class="h-10 w-10 rounded bg-black/5 object-cover" src="${p.headshot?.href ?? ""}" alt=""><span>${p.displayName}</span></div></td><td class="px-4 py-3 text-[#667085]">${p.teamAbbr}</td><td class="px-4 py-3 text-right">${p.score}</td><td class="px-4 py-3 text-right">${p.statsFlat?.avgPoints?.display ?? "-"}</td><td class="px-4 py-3 text-right">${p.statsFlat?.avgRebounds?.display ?? "-"}</td><td class="px-4 py-3 text-right">${p.statsFlat?.avgAssists?.display ?? "-"}</td><td class="px-4 py-3 text-right">${p.statsFlat?.PER?.display ?? "-"}</td></tr>`).join("")}</tbody></table></div><aside class="court-lines rounded border border-black/10 p-5"><p class="display text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Líder actual</p><img class="mt-4 h-40 w-40 rounded bg-black/5 object-cover" src="${hero?.headshot?.href ?? ""}" alt=""><h3 class="display mt-4 text-5xl font-black uppercase leading-none">${hero?.displayName ?? ""}</h3><p class="mt-2 text-sm font-bold uppercase text-[#667085]">${hero?.teamName ?? hero?.teamAbbr ?? ""} · ${hero?.position?.abbreviation ?? ""} · ${money(hero?.contract?.salary || hero?.contracts?.[0]?.salary)}</p><button id="open-hero-player" class="mt-4 rounded bg-[#111827] px-3 py-2 text-xs font-black uppercase text-white">Ver trayectoria</button><div class="mt-5 grid grid-cols-2 gap-3">${[["Score",hero?.score],["PTS",hero?.statsFlat?.avgPoints?.display],["REB",hero?.statsFlat?.avgRebounds?.display],["AST",hero?.statsFlat?.avgAssists?.display]].map(([l,v])=>`<div class="rounded border border-black/10 bg-white p-3"><p class="text-xs font-black uppercase text-[#667085]">${l}</p><p class="display text-4xl font-black">${v ?? "-"}</p></div>`).join("")}</div></aside>`;
+      $("rankings-grid").querySelectorAll("[data-player]").forEach(row => row.addEventListener("click", () => openPlayerDetail(ranked.find(p => p.id === row.dataset.player))));
+      $("open-hero-player")?.addEventListener("click", () => openPlayerDetail(hero));
+    }
+
+    function calcTeamScores(minMPG, minGP) {
+      const scores = {};
+      for (const [abbr, roster] of Object.entries(state.rosters)) {
+        const qualified = roster.filter(p => {
+          const sf = p.statsFlat || {};
+          const mpg = Number(sf.avgMinutes?.value ?? 0);
+          const gp = Number(sf.gamesPlayed?.value ?? 0);
+          const hasRealStats = Number(sf.avgPoints?.value ?? 0) + Number(sf.avgRebounds?.value ?? 0) + Number(sf.avgAssists?.value ?? 0) > 0;
+          if (!hasRealStats) return false;
+          if (minMPG === 0) return gp >= 1;
+          return mpg >= minMPG && gp >= minGP;
+        });
+        if (!qualified.length) continue;
+        qualified.forEach(p => { p.score = calcScore(p, teamStanding(abbr)); });
+        const sorted = [...qualified].sort((a, b) => b.score - a.score);
+        const avg = sorted.reduce((s, p) => s + p.score, 0) / sorted.length;
+        scores[abbr] = { avg: Math.round(avg * 10) / 10, count: sorted.length, players: sorted, team: state.teams.find(t => t.abbreviation === abbr), entry: teamStanding(abbr) };
+      }
+      return scores;
+    }
+
+    async function renderTeamRanking(minMPG, minGP) {
+      const mpg = minMPG ?? state.minMPG ?? 15;
+      const gp = minGP ?? (mpg >= 25 ? 30 : mpg >= 15 ? 20 : 1);
+      const status = $("ranking-status");
+      const grid = $("team-ranking-grid");
+      status.textContent = "Cargando rosters de los 30 equipos...";
+      grid.innerHTML = "";
+      await loadAllPlayers();
+      const remaining = state.allPlayers.filter(p => !Object.keys(state.playerStats[p.id] || {}).length);
+      if (remaining.length) {
+        status.textContent = `Cargando estadísticas de ${remaining.length} jugadores restantes...`;
+        await hydrateStats(state.allPlayers);
+        state.allPlayers.forEach(p => { p.score = calcScore(p, teamStanding(p.teamAbbr)); });
+      }
+      const scores = calcTeamScores(mpg, gp);
+      const ranked = Object.entries(scores).sort((a, b) => b[1].avg - a[1].avg);
+      if (!ranked.length) { status.textContent = "No hay equipos con suficientes datos para este filtro."; return; }
+      const maxAvg = ranked[0][1].avg;
+      const filterLabel = mpg === 0 ? "todos los jugadores con stats" : `≥${mpg} MPG / ≥${gp} PJ`;
+      status.textContent = `${ranked.length} equipos clasificados · ${filterLabel}`;
+      grid.innerHTML = `<div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left">
+        <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+          <th class="px-4 py-3">#</th>
+          <th class="px-4 py-3">Equipo</th>
+          <th class="px-4 py-3 text-right" title="Promedio del score de todos los jugadores calificados">Score Prom.</th>
+          <th class="px-4 py-3 text-right">Jugadores</th>
+          <th class="px-4 py-3">Mejor jugador</th>
+          <th class="px-4 py-3 text-right">Score top</th>
+          <th class="px-4 py-3">Fuerza relativa</th>
+        </tr></thead>
+        <tbody class="display text-xl">${ranked.map(([abbr, data], i) => {
+          const barW = Math.round((data.avg / maxAvg) * 100);
+          const color = cleanHex(data.team?.color);
+          const best = data.players[0];
+          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+          return `<tr class="row clickable border-b border-black/10" data-team-rank="${abbr}">
+            <td class="px-4 py-3 text-[#667085] font-bold">${medal}</td>
+            <td class="px-4 py-3"><div class="flex items-center gap-3"><img class="h-10 w-10 object-contain" src="${data.team?.logos?.[0]?.href ?? ""}" alt=""><div><p class="font-black">${data.team?.displayName ?? abbr}</p><p class="text-sm text-[#667085]">${statValue(data.entry || {}, "overall")}</p></div></div></td>
+            <td class="px-4 py-3 text-right"><span class="rounded bg-[#111827] px-3 py-1 text-white font-black text-lg">${data.avg.toFixed(1)}</span></td>
+            <td class="px-4 py-3 text-right text-[#667085]">${data.count}</td>
+            <td class="px-4 py-3"><div class="flex items-center gap-2"><img class="h-8 w-8 rounded bg-black/5 object-cover" src="${best?.headshot?.href ?? ""}" alt=""><span class="text-base">${best?.displayName ?? "-"}</span></div></td>
+            <td class="px-4 py-3 text-right">${best?.score ?? "-"}</td>
+            <td class="px-4 py-3"><div style="background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden;width:128px"><div style="background:linear-gradient(90deg,${color},${color}99);height:100%;width:${barW}%;border-radius:999px"></div></div></td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table></div>`;
+      grid.querySelectorAll("[data-team-rank]").forEach(row => row.addEventListener("click", () => showTeamRankDetail(row.dataset.teamRank, scores[row.dataset.teamRank])));
+    }
+
+    function showTeamRankDetail(abbr, data) {
+      let el = $("team-rank-detail");
+      if (!el) { el = document.createElement("div"); el.id = "team-rank-detail"; el.className = "panel mt-4 overflow-hidden"; $("view-ranking").appendChild(el); }
+      el.innerHTML = `
+        <div class="border-b border-black/10 p-4 flex items-center justify-between flex-wrap gap-4">
+          <div class="flex items-center gap-4">
+            <img class="h-16 w-16 object-contain" src="${data.team?.logos?.[0]?.href ?? ""}" alt="">
+            <div>
+              <p class="text-xs font-bold uppercase text-[#667085]">${statValue(data.entry || {}, "overall")} · ${abbr}</p>
+              <h3 class="display text-4xl font-black uppercase">${data.team?.displayName ?? abbr}</h3>
+            </div>
+            <div class="ml-4 rounded bg-[#111827] px-4 py-2 text-white text-center"><p class="text-xs font-bold uppercase text-[#667085]" style="color:#aaa">Score prom.</p><p class="display text-3xl font-black">${data.avg.toFixed(1)}</p></div>
+          </div>
+          <button class="rounded border border-black/15 px-3 py-2 text-xs font-black uppercase hover:bg-[#111827] hover:text-white" onclick="document.getElementById('team-rank-detail').remove()">Cerrar</button>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left">
+          <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+            <th class="px-4 py-3">Jugador</th><th class="px-4 py-3">POS</th>
+            <th class="px-4 py-3 text-right">Score</th><th class="px-4 py-3 text-right">PTS</th>
+            <th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th>
+            <th class="px-4 py-3 text-right">MPG</th><th class="px-4 py-3 text-right">PJ</th>
+          </tr></thead>
+          <tbody class="display text-xl">${data.players.map(p => `<tr class="row clickable border-b border-black/10" data-player="${p.id}">
+            <td class="px-4 py-3"><div class="flex items-center gap-3"><img class="h-8 w-8 rounded bg-black/5 object-cover" src="${p.headshot?.href ?? ""}" alt=""><span>${p.displayName}</span></div></td>
+            <td class="px-4 py-3 text-[#667085]">${p.position?.abbreviation ?? "-"}</td>
+            <td class="px-4 py-3 text-right"><span class="rounded bg-[#111827] px-2 py-1 text-white text-sm">${p.score}</span></td>
+            <td class="px-4 py-3 text-right">${p.statsFlat?.avgPoints?.display ?? "-"}</td>
+            <td class="px-4 py-3 text-right">${p.statsFlat?.avgRebounds?.display ?? "-"}</td>
+            <td class="px-4 py-3 text-right">${p.statsFlat?.avgAssists?.display ?? "-"}</td>
+            <td class="px-4 py-3 text-right">${p.statsFlat?.avgMinutes?.display ?? "-"}</td>
+            <td class="px-4 py-3 text-right">${p.statsFlat?.gamesPlayed?.display ?? "-"}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>`;
+      el.scrollIntoView({ behavior:"smooth", block:"start" });
+      el.querySelectorAll("[data-player]").forEach(row => row.addEventListener("click", () => openPlayerDetail(data.players.find(p => p.id === row.dataset.player))));
+    }
+
+    // ── Historia (all-time) ────────────────────────────────────────────────────
+    const historiaState = { data: null, tab: "seasons" };
+
+    async function loadHistoriaData() {
+      if (historiaState.data) return historiaState.data;
+      $("historia-status").textContent = "Cargando datos históricos…";
+      try {
+        const r = await fetch("/data/nba_all_time.json", { cache: "force-cache" });
+        if (!r.ok) throw new Error("404");
+        historiaState.data = await r.json();
+        $("historia-status").textContent =
+          `${historiaState.data.meta.player_seasons.toLocaleString()} temporadas individuales · ` +
+          `${historiaState.data.meta.seasons} temporadas NBA · construido ${historiaState.data.meta.built}`;
+        return historiaState.data;
+      } catch {
+        $("historia-status").innerHTML =
+          `<span class="text-[#c9082a]">Datos no encontrados. Ejecuta <code class="bg-black/5 px-1 rounded">python3 build_db.py</code> para generarlos (~5 min).</span>`;
+        return null;
+      }
+    }
+
+    function scoreBar(score, width = "w-20") {
+      return `<div class="flex items-center gap-2"><div class="bar-track ${width}"><div class="bar-fill" style="width:${score}%"></div></div><span class="font-black">${score}</span></div>`;
+    }
+
+    function renderHistoriaSeasons(data) {
+      const rows = data.top_player_seasons;
+      return `<div class="overflow-x-auto"><table class="w-full min-w-[860px] text-left">
+        <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+          <th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th>
+          <th class="px-4 py-3">Equipo</th><th class="px-4 py-3">Temporada</th>
+          <th class="px-4 py-3 text-right">Score era-adj.</th>
+          <th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th>
+          <th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">MPG</th>
+        </tr></thead>
+        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
+          <td class="px-4 py-3 text-[#667085]">${i+1}</td>
+          <td class="px-4 py-3 font-black">${r.name}</td>
+          <td class="px-4 py-3 text-[#667085]">${r.team}</td>
+          <td class="px-4 py-3 text-[#667085]">${r.season}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(r.score)}</td>
+          <td class="px-4 py-3 text-right">${r.pts}</td>
+          <td class="px-4 py-3 text-right">${r.reb}</td>
+          <td class="px-4 py-3 text-right">${r.ast}</td>
+          <td class="px-4 py-3 text-right">${r.mpg}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+    }
+
+    function renderHistoriaCareers(data) {
+      const rows = data.top_careers;
+      return `<div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left">
+        <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+          <th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th>
+          <th class="px-4 py-3 text-right">Score carrera</th>
+          <th class="px-4 py-3 text-right">Score pico</th>
+          <th class="px-4 py-3">Mejor temporada</th>
+          <th class="px-4 py-3 text-right">PTS pico</th><th class="px-4 py-3 text-right">REB pico</th>
+          <th class="px-4 py-3 text-right">AST pico</th>
+          <th class="px-4 py-3 text-right">Temporadas</th><th class="px-4 py-3 text-right">PJ total</th>
+        </tr></thead>
+        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
+          <td class="px-4 py-3 text-[#667085]">${i+1}</td>
+          <td class="px-4 py-3 font-black">${r.name}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(r.career_score)}</td>
+          <td class="px-4 py-3 text-right font-black">${r.peak_score}</td>
+          <td class="px-4 py-3 text-[#667085]">${r.peak_season} · ${r.peak_team}</td>
+          <td class="px-4 py-3 text-right">${r.peak_pts}</td>
+          <td class="px-4 py-3 text-right">${r.peak_reb}</td>
+          <td class="px-4 py-3 text-right">${r.peak_ast}</td>
+          <td class="px-4 py-3 text-right">${r.total_seasons}</td>
+          <td class="px-4 py-3 text-right">${r.total_gp}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+    }
+
+    function renderHistoriaTeams(data) {
+      const rows = data.top_team_seasons;
+      return `<div class="overflow-x-auto"><table class="w-full min-w-[820px] text-left">
+        <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+          <th class="px-4 py-3">#</th><th class="px-4 py-3">Equipo</th>
+          <th class="px-4 py-3">Temporada</th>
+          <th class="px-4 py-3 text-right">Score equipo</th>
+          <th class="px-4 py-3 text-right">W-L</th>
+          <th class="px-4 py-3">Mejor jugador</th>
+          <th class="px-4 py-3 text-right">Score jugador</th>
+          <th class="px-4 py-3 text-right">Jugadores</th>
+        </tr></thead>
+        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
+          <td class="px-4 py-3 text-[#667085]">${i+1}</td>
+          <td class="px-4 py-3 font-black">${r.name}</td>
+          <td class="px-4 py-3 text-[#667085]">${r.season}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(r.team_score)}</td>
+          <td class="px-4 py-3 text-right">${r.wins}-${r.losses}</td>
+          <td class="px-4 py-3">${r.best_player}</td>
+          <td class="px-4 py-3 text-right font-black">${r.best_player_score}</td>
+          <td class="px-4 py-3 text-right text-[#667085]">${r.roster_count}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+    }
+
+    function renderHistoriaGames(data) {
+      const rows = data.top_games;
+      return `<div class="overflow-x-auto">
+        <p class="mb-3 text-xs font-semibold text-[#667085] uppercase">Partidos de playoff donde ambos equipos tenían el mayor rating esa temporada.</p>
+        <table class="w-full min-w-[800px] text-left">
+        <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
+          <th class="px-4 py-3">#</th><th class="px-4 py-3">Fecha</th>
+          <th class="px-4 py-3">Partido</th><th class="px-4 py-3 text-right">Resultado</th>
+          <th class="px-4 py-3 text-right">Rating ganador</th>
+          <th class="px-4 py-3 text-right">Rating perdedor</th>
+          <th class="px-4 py-3 text-right">Calidad</th>
+        </tr></thead>
+        <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row border-b border-black/10">
+          <td class="px-4 py-3 text-[#667085]">${i+1}</td>
+          <td class="px-4 py-3 text-[#667085] text-base">${r.date}</td>
+          <td class="px-4 py-3 font-black">${r.winner} vs ${r.loser} <span class="text-sm font-normal text-[#667085]">${r.season}</span></td>
+          <td class="px-4 py-3 text-right font-black">${r.winner_pts}–${r.loser_pts}</td>
+          <td class="px-4 py-3 text-right">${r.winner_score}</td>
+          <td class="px-4 py-3 text-right">${r.loser_score}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(r.quality, "w-16")}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+    }
+
+    async function renderHistoria(tab) {
+      historiaState.tab = tab || historiaState.tab;
+      document.querySelectorAll(".htab").forEach(b => b.classList.toggle("active", b.dataset.ht === historiaState.tab));
+      const data = await loadHistoriaData();
+      if (!data) return;
+      const content = $("historia-content");
+      if (historiaState.tab === "seasons")  content.innerHTML = renderHistoriaSeasons(data);
+      if (historiaState.tab === "careers")  content.innerHTML = renderHistoriaCareers(data);
+      if (historiaState.tab === "teams")    content.innerHTML = renderHistoriaTeams(data);
+      if (historiaState.tab === "games")    content.innerHTML = renderHistoriaGames(data);
+    }
+
+    function showView(view) {
+      state.view = view;
+      document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+      $(`view-${view}`).classList.remove("hidden");
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
+      if (view === "players")  renderPlayers();
+      if (view === "ranking")  renderTeamRanking(state.minMPG);
+      if (view === "historia") renderHistoria();
+    }
+
+    document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showView(t.dataset.view)));
+    document.querySelectorAll(".conf-tab").forEach(t => t.addEventListener("click", () => { state.conference = t.dataset.conf; document.querySelectorAll(".conf-tab").forEach(x => x.classList.toggle("active", x === t)); renderStandings(); }));
+    document.querySelectorAll(".htab").forEach(btn =>
+      btn.addEventListener("click", () => renderHistoria(btn.dataset.ht))
+    );
+    document.querySelectorAll(".min-tab").forEach(btn => btn.addEventListener("click", () => {
+      document.querySelectorAll(".min-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.minMPG = Number(btn.dataset.min);
+      renderTeamRanking(state.minMPG, Number(btn.dataset.gp));
+    }));
+    $("refresh-btn").addEventListener("click", loadCore);
+    loadCore().catch(err => { $("updated-label").textContent = "Error cargando datos"; $("scoreboard").innerHTML = `<div class="p-4 text-red-200">${err.message}</div>`; });
+    setInterval(loadCore, 60000);
+  </script>
+</body>
+</html>

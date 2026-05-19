@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+data/build_log.txt
+.DS_Store
+EyeOpenerBook18mayPRINT.pdf

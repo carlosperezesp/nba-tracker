@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Courtside Analytics | Player Stats</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary": "#2f3131",
+            "on-tertiary-fixed": "#1b1c1c",
+            "surface-bright": "#3a3939",
+            "on-tertiary-fixed-variant": "#474746",
+            "surface-variant": "#353534",
+            "secondary-fixed": "#dbe3ed",
+            "primary-container": "#e2e2e2",
+            "inverse-on-surface": "#313030",
+            "on-primary-container": "#636565",
+            "on-error": "#690005",
+            "primary": "#ffffff",
+            "on-secondary-fixed-variant": "#40484f",
+            "on-primary-fixed": "#1a1c1c",
+            "on-secondary": "#293138",
+            "on-surface-variant": "#c4c7c8",
+            "tertiary-fixed-dim": "#c8c6c5",
+            "secondary": "#bfc7d1",
+            "error": "#ffb4ab",
+            "on-background": "#e5e2e1",
+            "on-secondary-container": "#b1b9c2",
+            "primary-fixed-dim": "#c6c6c7",
+            "surface-container-highest": "#353534",
+            "background": "#131313",
+            "surface-container-lowest": "#0e0e0e",
+            "tertiary-fixed": "#e5e2e1",
+            "on-error-container": "#ffdad6",
+            "outline-variant": "#444748",
+            "on-secondary-fixed": "#151c23",
+            "on-primary-fixed-variant": "#454747",
+            "surface-container": "#201f1f",
+            "on-surface": "#e5e2e1",
+            "surface": "#131313",
+            "error-container": "#93000a",
+            "tertiary-container": "#e5e2e1",
+            "inverse-primary": "#5d5f5f",
+            "surface-container-high": "#2a2a2a",
+            "primary-fixed": "#e2e2e2",
+            "secondary-container": "#424a52",
+            "surface-tint": "#c6c6c7",
+            "surface-dim": "#131313",
+            "on-tertiary": "#303030",
+            "tertiary": "#ffffff",
+            "inverse-surface": "#e5e2e1",
+            "on-tertiary-container": "#656464",
+            "outline": "#8e9192",
+            "surface-container-low": "#1c1b1b",
+            "secondary-fixed-dim": "#bfc7d1"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "xs": "4px",
+            "lg": "40px",
+            "base": "8px",
+            "margin-desktop": "32px",
+            "md": "24px",
+            "sm": "12px",
+            "margin-mobile": "16px",
+            "xl": "64px",
+            "gutter": "16px"
+          },
+          "fontFamily": {
+            "label-caps": ["Barlow Condensed"],
+            "body-md": ["Inter"],
+            "stat-numeric": ["Barlow Condensed"],
+            "body-lg": ["Inter"],
+            "display-lg": ["Barlow Condensed"],
+            "headline-md": ["Barlow Condensed"],
+            "headline-lg": ["Barlow Condensed"]
+          },
+          "fontSize": {
+            "label-caps": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+            "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+            "stat-numeric": ["20px", {"lineHeight": "1", "fontWeight": "700"}],
+            "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+            "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+            "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .metallic-gradient {
+      background: linear-gradient(180deg, #FFFFFF 0%, #BFC7D1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card-sheen {
+      position: relative;
+      overflow: hidden;
+    }
+    .card-sheen::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent);
+      transform: rotate(45deg);
+      transition: 0.5s;
+    }
+    .card-sheen:hover::after {
+      left: 100%;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-margin-mobile h-16 sticky top-0 z-50 bg-background border-b border-surface-variant">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors duration-200 p-2 rounded">menu</button>
+<h1 class="font-headline-md text-headline-md-mobile font-bold tracking-tighter text-primary uppercase">COURTSIDE ANALYTICS</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors duration-200 p-2 rounded">search</button>
+</div>
+</header>
+<main class="pb-24">
+<!-- Hero / Active Context -->
+<section class="px-margin-mobile py-8 bg-surface-container-low border-b border-surface-variant">
+<div class="flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Global Analytics</span>
+<h2 class="font-display-lg text-display-lg text-primary uppercase">PLAYER ELITE</h2>
+</div>
+</section>
+<!-- Section 1: Top 10 Power Scores -->
+<section class="mt-8">
+<div class="px-margin-mobile flex justify-between items-end mb-4">
+<div class="flex flex-col">
+<h3 class="font-headline-lg text-headline-lg text-primary uppercase leading-none">TOP 10 POWER SCORES</h3>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1">NORMALIZED METRIC (0-100)</p>
+</div>
+<div class="flex gap-2">
+<button class="material-symbols-outlined text-on-surface-variant border border-surface-variant p-1 rounded hover:bg-surface-container-high">chevron_left</button>
+<button class="material-symbols-outlined text-on-surface-variant border border-surface-variant p-1 rounded hover:bg-surface-container-high">chevron_right</button>
+</div>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-gutter px-margin-mobile snap-x">
+<!-- Power Score Card 1 -->
+<div class="snap-start min-w-[280px] bg-surface-container border border-surface-variant card-sheen transition-all hover:border-primary group">
+<div class="relative h-48 overflow-hidden bg-surface-container-highest">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-500" data-alt="A cinematic, high-contrast studio portrait of a professional hockey player in full dark gear, staring intensely at the camera. The lighting is dramatic and cold, with sharp highlights against a deep charcoal background, echoing a metallic industrial aesthetic. The mood is aggressive and focused, capturing the high-intensity atmosphere of a championship game." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjBXrK6mbVV6UVfDc9kEcSEied68u82DzrJluQWVSYHjhVT0H64sh6ELctVoKIqiXGgWeOpfZ0p0OwZG1-FjWGiPpLHXNr_oyV9Rd6QzAvcZP4GargaA507ZcTCqBYEfsW9Rfx5Yk3Gr3TKGEOtAal6ExtjNsHMf4t-uuxFLIev0S5TlLsY0O9d5LjzsDppuPogl_Q_VVvnSBnSao5VOporsFdLxwvJjLCBSCCXM3objLPk3jy_jdoeoXXAzKwuZ2SQiCXhTQIcCMA"/>
+<div class="absolute top-3 left-3 bg-primary text-on-primary font-stat-numeric text-stat-numeric px-2 py-1">01</div>
+<div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
+<span class="font-label-caps text-label-caps text-primary">CONNOR McDAVID</span>
+</div>
+</div>
+<div class="p-4 flex flex-col items-center justify-center border-t border-surface-variant">
+<div class="relative w-20 h-20 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-surface-container-highest" cx="40" cy="40" fill="transparent" r="36" stroke="currentColor" stroke-width="4"></circle>
+<circle cx="40" cy="40" fill="transparent" r="36" stroke="url(#metallicGradient)" stroke-dasharray="226" stroke-dashoffset="11" stroke-linecap="butt" stroke-width="4"></circle>
+<defs>
+<lineargradient id="metallicGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#8e9192;stop-opacity:1"></stop>
+</lineargradient>
+</defs>
+</svg>
+<span class="absolute font-display-lg text-headline-lg metallic-gradient">95</span>
+</div>
+<span class="mt-2 font-label-caps text-label-caps text-on-surface-variant">EDM | C</span>
+</div>
+</div>
+<!-- Repeated Cards (Simulated) -->
+<div class="snap-start min-w-[280px] bg-surface-container border border-surface-variant card-sheen transition-all hover:border-primary group">
+<div class="relative h-48 overflow-hidden bg-surface-container-highest">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-500" data-alt="A dynamic action shot of a hockey player skating with high speed, captured with motion blur. The player wears a white and silver jersey that shines under bright stadium arena lights. The background is a pitch-black arena, creating a high-contrast industrial look. The image evokes precision and athletic power." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeWkwDnWQALJN2mURdssRJhASpxg7WJRDfEOuVhe2i0NnNy-7ELTl594-lXHcJxV2e_Gu2Eyy6Pi7Q2XiPCy3ha0A0wGKXX9tmfP4h8W_i2MjE7nTEDr0uWPqio50kXZPJZz6s2XHRD5P6SmvvcYXlC0RBF7R1-Tydttek4pAMH-7WAwt9mVzXOKpn_Nr8UukCxOVcx49QV1rCRkrtJnD3jMLWxUT9uecwg3CsPt6mDl01SGS4RyTxnnq9lEq3NM1wb2uEaycSsHEw"/>
+<div class="absolute top-3 left-3 bg-primary text-on-primary font-stat-numeric text-stat-numeric px-2 py-1">02</div>
+<div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
+<span class="font-label-caps text-label-caps text-primary">NATHAN MacKINNON</span>
+</div>
+</div>
+<div class="p-4 flex flex-col items-center justify-center border-t border-surface-variant">
+<div class="relative w-20 h-20 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-surface-container-highest" cx="40" cy="40" fill="transparent" r="36" stroke="currentColor" stroke-width="4"></circle>
+<circle cx="40" cy="40" fill="transparent" r="36" stroke="url(#metallicGradient)" stroke-dasharray="226" stroke-dashoffset="18" stroke-linecap="butt" stroke-width="4"></circle>
+</svg>
+<span class="absolute font-display-lg text-headline-lg metallic-gradient">92</span>
+</div>
+<span class="mt-2 font-label-caps text-label-caps text-on-surface-variant">COL | C</span>
+</div>
+</div>
+<div class="snap-start min-w-[280px] bg-surface-container border border-surface-variant card-sheen transition-all hover:border-primary group">
+<div class="relative h-48 overflow-hidden bg-surface-container-highest">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-500" data-alt="A sharp, close-up shot of professional hockey equipment including a helmet and gloves sitting on a bench in a dimly lit locker room. Silver accents on the gear gleam under a single cold spotlight. The atmosphere is quiet, clinical, and prepared for battle, using a palette of deep blacks and cool greys." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_VHLzjfzWjvlhNjOx3nTaQnWrYRy5ukGA979LI-Cd1tExz1Aj0mI7fEFMurRIPEO8sI5_wvLcCKsRbKFNOD6s_eGpI6CAbQExrocodCrDlOsxzoschNe93uUYpnPTK3nET6a0q9NgRCFJQ1FGhFDaTaiU1l2wrTmp-dYPJ36UojLZXoVrHqX0EdypXqP4_DG-Ck1S3Wh7YQk1wkQOShEbyh7ErQ7upiM9OefkuFIH_v4umzH9DDr1CQfoRQxdr5yiTj2GtUKu_xja"/>
+<div class="absolute top-3 left-3 bg-primary text-on-primary font-stat-numeric text-stat-numeric px-2 py-1">03</div>
+<div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
+<span class="font-label-caps text-label-caps text-primary">NIKITA KUCHEROV</span>
+</div>
+</div>
+<div class="p-4 flex flex-col items-center justify-center border-t border-surface-variant">
+<div class="relative w-20 h-20 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-surface-container-highest" cx="40" cy="40" fill="transparent" r="36" stroke="currentColor" stroke-width="4"></circle>
+<circle cx="40" cy="40" fill="transparent" r="36" stroke="url(#metallicGradient)" stroke-dasharray="226" stroke-dashoffset="24" stroke-linecap="butt" stroke-width="4"></circle>
+</svg>
+<span class="absolute font-display-lg text-headline-lg metallic-gradient">90</span>
+</div>
+<span class="mt-2 font-label-caps text-label-caps text-on-surface-variant">TBL | RW</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Points Per Game -->
+<section class="mt-12">
+<div class="px-margin-mobile mb-4">
+<h3 class="font-headline-lg text-headline-lg text-primary uppercase leading-none">POINTS PER GAME</h3>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1">SEASON LEADERS</p>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-base px-margin-mobile snap-x">
+<!-- PPG Card -->
+<div class="snap-start min-w-[200px] bg-surface-container-low border border-surface-variant p-4 flex flex-col gap-3 group hover:bg-surface-container transition-colors">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden grayscale">
+<img data-alt="A minimalist logo of a hockey team featuring a shield and crossed sticks in silver and black. The design is geometric and sharp, presented against a charcoal background with metallic textures." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvX26z0N8WRS2pYnvY_6lp4UyIcJRXtEeXkmQRZ9LD2A0aavL5QrezgMc3WEBY8XHe4iVTiolMN7A-7v-y7GL3_0tHku4H4vMx5Dx3WO8a4JJb9c0lUwZJjJ80t2bmwM7G4lRv7HrWfEM0WH1FckGwEjwd5_775mH_2ogO4lhv-vgn85s18-nEYvfP3GwWp7iKliip-c92WfiJ8kEK0SUG7XlioMkowmXOZLi__ivc3lyNur3h_BjgK3gIhJTwdsDxjSvyE54ltckP"/>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient text-3xl">1.82</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-primary leading-tight">McDAVID, C.</p>
+<p class="font-label-caps text-xs text-on-surface-variant">EDMONTON OILERS</p>
+</div>
+<div class="h-1 bg-surface-container-highest w-full mt-2">
+<div class="h-full bg-primary w-[90%]"></div>
+</div>
+</div>
+<div class="snap-start min-w-[200px] bg-surface-container-low border border-surface-variant p-4 flex flex-col gap-3 group hover:bg-surface-container transition-colors">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden grayscale">
+<img data-alt="A sharp, stylized mountain logo for a hockey team in metallic silver and obsidian black. The aesthetic is clean and modern, evoking a cold alpine environment, perfectly suited for an NHL broadcast style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvYJrgtXXZ8bSQw9FH1Q7EnMOTFQ38COOWk2JjAhtpFrk7aTQifL4Ih9QTc7chujP8remMOtCC5HE7RG9ecd5OhZ0zQygf061LhAT_fd2MjcMwi0fA2ui75O-8JcgHKe0acWD_YK1Q92pBGfHJOk0TG9SmTMz39zwvyh69xyjQtnUgo4edm_AHk3a6OCQNxKbwNDV59TTkevG2k-4Y8IDcNooWgFAq7pEwiPHP3yZEFt1axOxZ70NnoGog5E7m4yowZ5S5zRY0QpVO"/>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient text-3xl">1.75</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-primary leading-tight">MacKINNON, N.</p>
+<p class="font-label-caps text-xs text-on-surface-variant">COLORADO AVALANCHE</p>
+</div>
+<div class="h-1 bg-surface-container-highest w-full mt-2">
+<div class="h-full bg-primary w-[85%]"></div>
+</div>
+</div>
+<div class="snap-start min-w-[200px] bg-surface-container-low border border-surface-variant p-4 flex flex-col gap-3 group hover:bg-surface-container transition-colors">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden grayscale">
+<img data-alt="A sleek lightning bolt icon in brushed silver on a dark charcoal background. The design is bold and industrial, representing a professional hockey franchise with clinical clarity and high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvYbJSYNAC9INtoIEwYf4tifQZFmy6vIzncyVVTovnwGAxeN_kd3mWRYd7i3hm9fTgxxyN59VUPQzHii3p6Clk7gTXaDyTW490A9IoMHh_eRTJIYLe5uFHknAe2pjbbMOghrLpeaahCEU6uxGWMksZirTCTpGttGEdZuurm3Ius8Aqq1uiLuAyerui1RxqiV54pewyG4kAv4r1-0W_BF1zhswH-3yKKzn6zFVzI8oC2bMWKkWE7eGEzjIrJxWTN6t4ifxkW7pP89SU"/>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient text-3xl">1.68</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-primary leading-tight">KUCHEROV, N.</p>
+<p class="font-label-caps text-xs text-on-surface-variant">TAMPA BAY LIGHTNING</p>
+</div>
+<div class="h-1 bg-surface-container-highest w-full mt-2">
+<div class="h-full bg-primary w-[80%]"></div>
+</div>
+</div>
+<div class="snap-start min-w-[200px] bg-surface-container-low border border-surface-variant p-4 flex flex-col gap-3 group hover:bg-surface-container transition-colors">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden grayscale">
+<div class="w-full h-full bg-surface-variant flex items-center justify-center font-bold text-lg">B</div>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient text-3xl">1.54</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-primary leading-tight">PASTRNAK, D.</p>
+<p class="font-label-caps text-xs text-on-surface-variant">BOSTON BRUINS</p>
+</div>
+<div class="h-1 bg-surface-container-highest w-full mt-2">
+<div class="h-full bg-primary w-[75%]"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Assists Per Game (Asymmetric Grid) -->
+<section class="mt-12 px-margin-mobile">
+<div class="mb-4">
+<h3 class="font-headline-lg text-headline-lg text-primary uppercase leading-none">ASSISTS PER GAME</h3>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1">ELITE PLAYMAKERS</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- List Style High-Density Rows -->
+<div class="col-span-1 bg-surface-container p-4 border-l-4 border-primary">
+<div class="flex items-center justify-between h-10">
+<div class="flex items-center gap-4">
+<span class="font-stat-numeric text-stat-numeric text-on-surface-variant">01</span>
+<span class="font-label-caps text-label-caps text-primary">QUINN HUGHES</span>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient">1.12</span>
+</div>
+<div class="flex items-center justify-between h-10 border-t border-surface-variant">
+<div class="flex items-center gap-4">
+<span class="font-stat-numeric text-stat-numeric text-on-surface-variant">02</span>
+<span class="font-label-caps text-label-caps text-primary">CALE MAKAR</span>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient">1.08</span>
+</div>
+<div class="flex items-center justify-between h-10 border-t border-surface-variant">
+<div class="flex items-center gap-4">
+<span class="font-stat-numeric text-stat-numeric text-on-surface-variant">03</span>
+<span class="font-label-caps text-label-caps text-primary">ARTEMI PANARIN</span>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient">1.04</span>
+</div>
+<div class="flex items-center justify-between h-10 border-t border-surface-variant">
+<div class="flex items-center gap-4">
+<span class="font-stat-numeric text-stat-numeric text-on-surface-variant">04</span>
+<span class="font-label-caps text-label-caps text-primary">LEON DRAISAITL</span>
+</div>
+<span class="font-stat-numeric text-stat-numeric metallic-gradient">0.98</span>
+</div>
+</div>
+<!-- Featured Playmaker Card -->
+<div class="md:col-span-1 lg:col-span-2 relative h-40 bg-surface-container flex items-center border border-surface-variant overflow-hidden group">
+<div class="z-10 p-6 flex flex-col justify-center">
+<span class="font-label-caps text-label-caps text-primary mb-2">SPOTLIGHT: REARGUARD</span>
+<h4 class="font-display-lg text-3xl text-primary leading-tight">MODERN<br/>DEFENSEMEN</h4>
+<p class="font-body-md text-xs text-on-surface-variant mt-2 max-w-[200px]">Defensemen are currently accounting for 34% of total league assists.</p>
+</div>
+<div class="absolute right-0 top-0 h-full w-1/2 overflow-hidden">
+<img class="w-full h-full object-cover grayscale opacity-40 group-hover:scale-110 transition-transform duration-700" data-alt="A dramatic shot of a hockey goal net, viewed from behind with shallow depth of field. The ice surface is pristine and reflective, illuminated by high-contrast overhead lighting. The mood is expectant and professional, focusing on the geometry of the rink and the metallic sheen of the ice." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDS7QRpsmivifTYrsKxDDqU9Ky6FNylVcg4zRb6-jKbIMlUBq7VT7eL7AdCe2JFIIAyuOGAIG4MUVbpuKrCac1OLGUhHiJi-6AZXR6OZDfLShYL_L1y4KEEp2UCj8cQCzXrNy8wQtPdsw2QYk2H_O15tNvn5ijgbhNQL_uDzfT7vFizjHghQiW_SWvrt9nbJuTPIpmxTnzJ31uu-5v2SADouFl9-s-v1Pnx5WHrw7fUj2ay5CH93zoQmnjsSRHh_L4KbSZ0I2wh0TT_"/>
+<div class="absolute inset-0 bg-gradient-to-r from-surface-container via-surface-container/80 to-transparent"></div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- NavigationDrawer (Mobile suppressed for main nav, but present as semantic shell) -->
+<aside class="fixed inset-y-0 left-0 z-[60] flex flex-col bg-surface-container-low border-r border-surface-variant w-80 -translate-x-full transition-transform duration-300" id="nav-drawer">
+<div class="p-6 flex items-center gap-4 border-b border-surface-variant">
+<div class="w-12 h-12 bg-primary rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary">person</span>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-primary uppercase">ANALYST PRO</h3>
+<p class="font-body-md text-xs text-on-surface-variant">Premium Account</p>
+</div>
+</div>
+<nav class="flex-1 py-4">
+<a class="flex items-center gap-4 text-on-surface-variant hover:bg-surface-container px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined">format_list_numbered</span>
+<span class="font-label-caps text-label-caps">Season Standings</span>
+</a>
+<a class="flex items-center gap-4 bg-surface-container-highest text-primary border-l-4 border-primary px-4 py-3" href="#">
+<span class="material-symbols-outlined">workspace_premium</span>
+<span class="font-label-caps text-label-caps">League Leaders</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant hover:bg-surface-container px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="font-label-caps text-label-caps">Team Rosters</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant hover:bg-surface-container px-4 py-3 transition-colors mt-auto" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</nav>
+<div class="p-4 border-t border-surface-variant text-center">
+<span class="font-label-caps text-[10px] text-on-surface-variant">v4.2.0</span>
+</div>
+</aside>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-safe bg-surface-container border-t border-surface-variant md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">DASHBOARD</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-label-caps text-label-caps">TEAMS</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-lg px-4 py-1 scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">leaderboard</span>
+<span class="font-label-caps text-label-caps">PLAYERS</span>
+</button>
+</nav>
+<script>
+    // Interaction logic for horizontal scrolling indicators
+    const scrolls = document.querySelectorAll('.overflow-x-auto');
+    scrolls.forEach(container => {
+      container.addEventListener('wheel', (evt) => {
+        evt.preventDefault();
+        container.scrollLeft += evt.deltaY;
+      });
+    });
+
+    // Simple interaction for the Menu button
+    const menuBtn = document.querySelector('header button.material-symbols-outlined');
+    const drawer = document.getElementById('nav-drawer');
+    let isOpen = false;
+
+    menuBtn.addEventListener('click', () => {
+      isOpen = !isOpen;
+      if(isOpen) {
+        drawer.style.transform = 'translateX(0)';
+      } else {
+        drawer.style.transform = 'translateX(-100%)';
+      }
+    });
+
+    // Close drawer on click outside
+    document.addEventListener('click', (e) => {
+      if (isOpen && !drawer.contains(e.target) && !menuBtn.contains(e.target)) {
+        isOpen = false;
+        drawer.style.transform = 'translateX(-100%)';
+      }
+    });
+  </script>
+</body></html>
