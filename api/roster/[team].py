@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from api._espn import proxy
+from _espn import proxy
 
 
 class handler(BaseHTTPRequestHandler):

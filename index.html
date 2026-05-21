@@ -152,13 +152,6 @@
     ];
     const $ = (id) => document.getElementById(id);
     const getJSON = async (url) => { const r = await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(`${url} ${r.status}`); return r.json(); };
-    const ESPN = {
-      scoreboard: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
-      standings:  "https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings",
-      teams:      "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams",
-      roster:     t  => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${t.toLowerCase()}/roster`,
-      playerStats: id => `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${id}/stats?region=us&lang=en&contentorigin=espn`,
-    };
     const statValue = (entry,key) => entry.stats?.find(s => s.name===key || s.type===key)?.displayValue ?? entry.stats?.find(s => s.name===key || s.type===key)?.summary ?? "-";
     const numericStat = (entry,key) => Number(entry.stats?.find(s => s.name===key || s.type===key)?.value ?? 0);
     const fmtTime = (iso) => new Intl.DateTimeFormat("es-ES",{dateStyle:"medium",timeStyle:"short"}).format(new Date(iso));
@@ -237,7 +230,7 @@
     }
 
     async function loadCore() {
-      const [scoreboard, standings, teams] = await Promise.all([getJSON(ESPN.scoreboard), getJSON(ESPN.standings), getJSON(ESPN.teams)]);
+      const [scoreboard, standings, teams] = await Promise.all([getJSON("/api/scoreboard"), getJSON("/api/standings"), getJSON("/api/teams")]);
       state.scoreboard = scoreboard.events ?? [];
       const children = standings.children ?? [];
       state.standings.east = children.find(c => c.abbreviation==="East")?.standings?.entries ?? [];
@@ -305,7 +298,7 @@
 
     async function loadPlayerHistory(player) {
       if (!state.playerHistory[player.id]) {
-        state.playerHistory[player.id] = parseSeasonHistory(await getJSON(ESPN.playerStats(player.id)));
+        state.playerHistory[player.id] = parseSeasonHistory(await getJSON(`/api/athlete/${player.id}/history`));
       }
       return state.playerHistory[player.id];
     }
@@ -347,7 +340,7 @@
 
     async function loadRoster(abbr) {
       if (!state.rosters[abbr]) {
-        const data = await getJSON(ESPN.roster(abbr));
+        const data = await getJSON(`/api/roster/${abbr}`);
         state.rosters[abbr] = (data.athletes ?? []).map(p => ({ ...p, teamAbbr: abbr, teamName: data.team?.displayName, teamColor: data.team?.color, teamLogo: data.team?.logo }));
       }
       return state.rosters[abbr];
