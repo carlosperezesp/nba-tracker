@@ -152,6 +152,13 @@
     ];
     const $ = (id) => document.getElementById(id);
     const getJSON = async (url) => { const r = await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(`${url} ${r.status}`); return r.json(); };
+    const ESPN = {
+      scoreboard: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+      standings:  "https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings",
+      teams:      "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams",
+      roster:     t  => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${t.toLowerCase()}/roster`,
+      playerStats: id => `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${id}/stats?region=us&lang=en&contentorigin=espn`,
+    };
     const statValue = (entry,key) => entry.stats?.find(s => s.name===key || s.type===key)?.displayValue ?? entry.stats?.find(s => s.name===key || s.type===key)?.summary ?? "-";
     const numericStat = (entry,key) => Number(entry.stats?.find(s => s.name===key || s.type===key)?.value ?? 0);
     const fmtTime = (iso) => new Intl.DateTimeFormat("es-ES",{dateStyle:"medium",timeStyle:"short"}).format(new Date(iso));
@@ -230,7 +237,7 @@
     }
 
     async function loadCore() {
-      const [scoreboard, standings, teams] = await Promise.all([getJSON("/api/scoreboard"), getJSON("/api/standings"), getJSON("/api/teams")]);
+      const [scoreboard, standings, teams] = await Promise.all([getJSON(ESPN.scoreboard), getJSON(ESPN.standings), getJSON(ESPN.teams)]);
       state.scoreboard = scoreboard.events ?? [];
       const children = standings.children ?? [];
       state.standings.east = children.find(c => c.abbreviation==="East")?.standings?.entries ?? [];
@@ -276,8 +283,21 @@
       const needed = players.filter(p => !state.playerStats[p.id]).slice(0, limit);
       for (let i = 0; i < needed.length; i += 8) {
         await Promise.all(needed.slice(i, i+8).map(async p => {
-          try { state.playerStats[p.id] = flatStats(await getJSON(`/api/athlete/${p.id}/stats`)); }
-          catch { state.playerStats[p.id] = {}; }
+          try {
+            const seasons = await loadPlayerHistory(p);
+            const cur = seasons[seasons.length - 1];
+            state.playerStats[p.id] = cur?.stats ? {
+              avgPoints:    { value: cur.stats.pts, display: cur.stats.pts.toFixed(1) },
+              avgRebounds:  { value: cur.stats.reb, display: cur.stats.reb.toFixed(1) },
+              avgAssists:   { value: cur.stats.ast, display: cur.stats.ast.toFixed(1) },
+              avgSteals:    { value: cur.stats.stl, display: cur.stats.stl.toFixed(1) },
+              avgBlocks:    { value: cur.stats.blk, display: cur.stats.blk.toFixed(1) },
+              avgMinutes:   { value: cur.stats.min, display: cur.stats.min.toFixed(1) },
+              gamesPlayed:  { value: cur.stats.gp,  display: String(cur.stats.gp) },
+              fieldGoalPct: { value: cur.stats.fgPct, display: cur.stats.fgPct.toFixed(3) },
+              PER:          { value: 0, display: "-" },
+            } : {};
+          } catch { state.playerStats[p.id] = {}; }
         }));
       }
       players.forEach(p => p.statsFlat = state.playerStats[p.id] || p.statsFlat || {});
@@ -285,7 +305,7 @@
 
     async function loadPlayerHistory(player) {
       if (!state.playerHistory[player.id]) {
-        state.playerHistory[player.id] = parseSeasonHistory(await getJSON(`/api/athlete/${player.id}/history`));
+        state.playerHistory[player.id] = parseSeasonHistory(await getJSON(ESPN.playerStats(player.id)));
       }
       return state.playerHistory[player.id];
     }
@@ -327,7 +347,7 @@
 
     async function loadRoster(abbr) {
       if (!state.rosters[abbr]) {
-        const data = await getJSON(`/api/roster/${abbr}`);
+        const data = await getJSON(ESPN.roster(abbr));
         state.rosters[abbr] = (data.athletes ?? []).map(p => ({ ...p, teamAbbr: abbr, teamName: data.team?.displayName, teamColor: data.team?.color, teamLogo: data.team?.logo }));
       }
       return state.rosters[abbr];
@@ -529,7 +549,7 @@
       if (historiaState.data) return historiaState.data;
       $("historia-status").textContent = "Cargando datos históricos…";
       try {
-        const r = await fetch("/data/nba_all_time.json", { cache: "force-cache" });
+        const r = await fetch("./data/nba_all_time.json", { cache: "force-cache" });
         if (!r.ok) throw new Error("404");
         historiaState.data = await r.json();
         $("historia-status").textContent =
@@ -612,12 +632,11 @@
 
     function renderHistoriaSeasons(data) {
       const rows = data.top_player_seasons;
-      const maxAdj = rows[0]?.adj || 1;
       return `<div class="overflow-x-auto"><table class="w-full min-w-[860px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th>
           <th class="px-4 py-3">Equipo</th><th class="px-4 py-3">Temporada</th>
-          <th class="px-4 py-3 text-right" title="Box score era-ajustado absoluto — comparable entre épocas">Score era-adj.</th>
+          <th class="px-4 py-3 text-right" title="Score era-ajustado normalizado 0-100. 100 = mejor temporada histórica (Shaq 1999-00)">Score (0–100)</th>
           <th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th>
           <th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">MPG</th>
         </tr></thead>
@@ -626,7 +645,7 @@
           <td class="px-4 py-3 font-black">${r.name}${activeBadge(r.name)}</td>
           <td class="px-4 py-3 text-[#667085]">${r.team}</td>
           <td class="px-4 py-3 text-[#667085]">${r.season}</td>
-          <td class="px-4 py-3 text-right">${adjBar(r.adj, maxAdj)}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(Math.round(r.score))}</td>
           <td class="px-4 py-3 text-right">${r.pts}</td>
           <td class="px-4 py-3 text-right">${r.reb}</td>
           <td class="px-4 py-3 text-right">${r.ast}</td>
@@ -637,12 +656,11 @@
 
     function renderHistoriaCareers(data) {
       const rows = data.top_careers;
-      const maxAdj = rows[0]?.career_adj || 1;
       return `<div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Jugador</th>
-          <th class="px-4 py-3 text-right" title="Promedio ponderado de las 5 mejores temporadas era-ajustadas">Score carrera</th>
-          <th class="px-4 py-3 text-right">Score pico</th>
+          <th class="px-4 py-3 text-right" title="Promedio ponderado de las 5 mejores temporadas era-ajustadas, normalizado 0-100">Score carrera (0–100)</th>
+          <th class="px-4 py-3 text-right" title="Score de la mejor temporada individual, normalizado 0-100">Score pico (0–100)</th>
           <th class="px-4 py-3">Mejor temporada</th>
           <th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th>
           <th class="px-4 py-3 text-right">AST</th>
@@ -651,8 +669,8 @@
         <tbody class="display text-xl">${rows.slice(0,50).map((r,i) => `<tr class="row clickable border-b border-black/10 cursor-pointer" data-hname="${r.name}">
           <td class="px-4 py-3 text-[#667085]">${i+1}</td>
           <td class="px-4 py-3 font-black">${r.name}${activeBadge(r.name)}</td>
-          <td class="px-4 py-3 text-right">${adjBar(r.career_adj, maxAdj)}</td>
-          <td class="px-4 py-3 text-right font-black">${r.peak_score}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(Math.round(r.career_score))}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(Math.round(r.peak_score))}</td>
           <td class="px-4 py-3 text-[#667085]">${r.peak_season} · ${r.peak_team}</td>
           <td class="px-4 py-3 text-right">${r.peak_pts}</td>
           <td class="px-4 py-3 text-right">${r.peak_reb}</td>
@@ -665,12 +683,11 @@
 
     function renderHistoriaTeams(data) {
       const rows = data.top_team_seasons;
-      const maxAdj = rows[0]?.team_adj || 1;
       return `<div class="overflow-x-auto"><table class="w-full min-w-[820px] text-left">
         <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr>
           <th class="px-4 py-3">#</th><th class="px-4 py-3">Equipo</th>
           <th class="px-4 py-3">Temporada</th>
-          <th class="px-4 py-3 text-right">Score equipo</th>
+          <th class="px-4 py-3 text-right" title="Score era-ajustado del equipo, normalizado 0-100">Score equipo (0–100)</th>
           <th class="px-4 py-3 text-right">W-L</th>
           <th class="px-4 py-3">Mejor jugador</th>
           <th class="px-4 py-3 text-right">Score jugador</th>
@@ -680,10 +697,10 @@
           <td class="px-4 py-3 text-[#667085]">${i+1}</td>
           <td class="px-4 py-3 font-black">${r.name}</td>
           <td class="px-4 py-3 text-[#667085]">${r.season}</td>
-          <td class="px-4 py-3 text-right">${adjBar(r.team_adj, maxAdj)}</td>
+          <td class="px-4 py-3 text-right">${scoreBar(Math.round(r.team_score))}</td>
           <td class="px-4 py-3 text-right">${r.wins}-${r.losses}</td>
           <td class="px-4 py-3">${r.best_player}</td>
-          <td class="px-4 py-3 text-right font-black">${r.best_player_score}</td>
+          <td class="px-4 py-3 text-right font-black">${Math.round(r.best_player_score)}</td>
           <td class="px-4 py-3 text-right text-[#667085]">${r.roster_count}</td>
         </tr>`).join("")}</tbody>
       </table></div>`;
