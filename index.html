@@ -148,7 +148,7 @@
   <script>
     const state = { view:"home", conference:"east", ranking:"score", minMPG:15, standings:{east:[],west:[]}, teams:[], scoreboard:[], rosters:{}, playerStats:{}, playerHistory:{}, allPlayers:[] };
     const rankingDefs = [
-      ["score","Global"],["pts","PTS"],["reb","REB"],["ast","AST"],["per","PER"],["stl","STL"]
+      ["score","Global"],["pts","PTS"],["reb","REB"],["ast","AST"],["stl","STL"],["blk","BLK"]
     ];
     const $ = (id) => document.getElementById(id);
     const getJSON = async (url) => { const r = await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(`${url} ${r.status}`); return r.json(); };
@@ -178,8 +178,19 @@
     }
 
     function calcScore(player, teamEntry) {
-      const pts = getPlayerMetric(player,"pts"), reb = getPlayerMetric(player,"reb"), ast = getPlayerMetric(player,"ast"), per = getPlayerMetric(player,"per"), stl = getPlayerMetric(player,"stl");
-      if (pts || reb || ast || per) return Math.max(1, Math.min(100, Math.round(pts*1.75 + reb*1.15 + ast*1.35 + stl*4 + per*1.1)));
+      const s = player.statsFlat || {};
+      const pts  = Number(s.avgPoints?.value    ?? 0);
+      const reb  = Number(s.avgRebounds?.value  ?? 0);
+      const ast  = Number(s.avgAssists?.value   ?? 0);
+      const stl  = Number(s.avgSteals?.value    ?? 0);
+      const blk  = Number(s.avgBlocks?.value    ?? 0);
+      const min  = Number(s.avgMinutes?.value   ?? 0);
+      const fgPct = Number(s.fieldGoalPct?.value ?? 0);
+      if (pts || reb || ast) {
+        return Math.max(1, Math.min(100, Math.round(
+          pts*1.7 + reb*1.08 + ast*1.28 + stl*4 + blk*3 + fgPct*10 + min*0.2
+        )));
+      }
       const salary = player.contract?.salary || player.contracts?.[0]?.salary || 0;
       const exp = player.experience?.years || 0;
       const prime = Math.max(0, 12 - Math.abs((player.age || 27) - 27));
