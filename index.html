@@ -164,6 +164,7 @@
       2010:.82, 2011:.81, 2012:.83, 2013:.86, 2014:.87, 2015:.87,
       2016:.94, 2017:.95, 2018:.96, 2019:.97, 2020:.99, 2021:1.00, 2022:1.01, 2023:1.03, 2024:1.05, 2025:1.05, 2026:1.06
     };
+    const ALL_TIME_MAX_ADJ = 113; // Shaq 1999-00 era-adjusted score = referencia 100
 
     function flatStats(stats) {
       const out = {};
@@ -321,7 +322,10 @@
       body.innerHTML = `<div class="p-5"><p class="text-sm font-bold uppercase tracking-[.18em] text-[#667085]">Cargando trayectoria</p><h2 class="display text-5xl font-black uppercase">${player.displayName}</h2></div>`;
       const seasons = await loadPlayerHistory(player);
       const current = seasons[seasons.length - 1];
-      const best = [...seasons].sort((a,b) => b.normalized - a.normalized)[0];
+      const best = [...seasons].sort((a,b) => b.adjustedScore - a.adjustedScore)[0];
+      const toHistScore = (adjScore) => Math.round(Math.min(100, (adjScore ?? 0) / ALL_TIME_MAX_ADJ * 100));
+      const currentHistScore = toHistScore(current?.adjustedScore);
+      const peakHistScore = toHistScore(best?.adjustedScore);
       body.innerHTML = `
         <div class="court-lines border-b border-black/10 p-5">
           <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -330,19 +334,27 @@
               <div>
                 <p class="text-xs font-black uppercase tracking-[.18em] text-[#667085]">${player.teamName ?? player.teamAbbr ?? ""} · ${player.position?.abbreviation ?? ""}</p>
                 <h2 class="display text-5xl font-black uppercase leading-none">${player.displayName}</h2>
-                <p class="mt-2 text-sm font-semibold text-[#667085]">Score promedio normalizado por contexto ofensivo de temporada. 100 = mejor temporada de su propia trayectoria ajustada.</p>
+                <p class="mt-2 text-sm font-semibold text-[#667085]">Score hist.: escala era-ajustada 0–100 donde 100 = Shaq 1999-00. Score liga: relativo a la temporada actual.</p>
               </div>
             </div>
             <button class="rounded border border-black/15 px-3 py-2 text-xs font-black uppercase hover:bg-[#111827] hover:text-white" onclick="document.getElementById('player-detail').classList.add('hidden')">Cerrar</button>
           </div>
           <div class="mt-5 grid gap-3 md:grid-cols-4">
-            ${[["Norm. carrera act.", current?.normalized],["Mejor norm. carrera", best?.normalized],["Temporada top", best?.label],["Score era-ajust. act.", current?.adjustedScore]].map(([label,value]) => `<div class="rounded border border-black/10 bg-white p-3"><p class="text-xs font-black uppercase text-[#667085]">${label}</p><p class="display text-4xl font-black">${value ?? "-"}</p></div>`).join("")}
+            ${[
+              ["Score liga 25-26", player.score ?? "-", "Relativo a la liga actual (mejor jugador ≈ 97)"],
+              ["Score histórico act.", currentHistScore || "-", "Escala era-ajustada 0-100 · 100 = Shaq 1999-00"],
+              ["Score histórico pico", peakHistScore || "-", `Mejor temporada: ${best?.label ?? "-"}`],
+              ["Mejor temporada", best?.label ?? "-", "Temporada con mayor score era-ajustado"],
+            ].map(([label,value,tip]) => `<div class="rounded border border-black/10 bg-white p-3" title="${tip}"><p class="text-xs font-black uppercase text-[#667085]">${label}</p><p class="display text-4xl font-black">${value}</p></div>`).join("")}
           </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full min-w-[880px] text-left">
-            <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Temporada</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right" title="Normalizado dentro de la carrera del jugador (su mejor temporada era-ajustada = 100)">Norm. carrera</th><th class="px-4 py-3 text-right" title="Box score era-ajustado, comparable entre jugadores y épocas">Era-ajust.</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">STL</th><th class="px-4 py-3 text-right">MIN</th><th class="px-4 py-3 text-right">PJ</th></tr></thead>
-            <tbody class="display text-xl">${seasons.map(season => `<tr class="row border-b border-black/10"><td class="px-4 py-3">${season.label}</td><td class="px-4 py-3 text-[#667085]">${season.teamSlug ?? "-"}</td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-24"><div class="bar-fill" style="width:${season.normalized}%"></div></div><span>${season.normalized}</span></div></td><td class="px-4 py-3 text-right font-black">${season.adjustedScore}</td><td class="px-4 py-3 text-right">${season.stats.pts.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.reb.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.ast.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.stl.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.min.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.gp}</td></tr>`).join("")}</tbody>
+            <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Temporada</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right" title="Escala era-ajustada 0-100 · 100 = Shaq 1999-00 · comparable entre eras">Score hist.</th><th class="px-4 py-3 text-right" title="Score de esta temporada relativo a la propia carrera del jugador (100 = su mejor año)">Score carrera</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">STL</th><th class="px-4 py-3 text-right">MIN</th><th class="px-4 py-3 text-right">PJ</th></tr></thead>
+            <tbody class="display text-xl">${seasons.map(season => {
+              const hs = toHistScore(season.adjustedScore);
+              return `<tr class="row border-b border-black/10"><td class="px-4 py-3">${season.label}</td><td class="px-4 py-3 text-[#667085]">${season.teamSlug ?? "-"}</td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-20"><div class="bar-fill" style="width:${hs}%"></div></div><span class="font-black">${hs}</span></div></td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-16"><div class="bar-fill" style="width:${season.normalized}%"></div></div><span>${season.normalized}</span></div></td><td class="px-4 py-3 text-right">${season.stats.pts.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.reb.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.ast.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.stl.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.min.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.gp}</td></tr>`;
+            }).join("")}</tbody>
           </table>
         </div>
       `;
