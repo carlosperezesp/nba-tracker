@@ -3,3 +3,6 @@ __pycache__/
 data/build_log.txt
 .DS_Store
 EyeOpenerBook18mayPRINT.pdf
+
+data/nba.db
+.vscode/

@@ -178,26 +178,24 @@
       return Number(s[map[key]]?.value ?? 0);
     }
 
-    function calcScore(player, teamEntry) {
+    function calcScore(player) {
       const s = player.statsFlat || {};
-      const pts  = Number(s.avgPoints?.value    ?? 0);
-      const reb  = Number(s.avgRebounds?.value  ?? 0);
-      const ast  = Number(s.avgAssists?.value   ?? 0);
-      const stl  = Number(s.avgSteals?.value    ?? 0);
-      const blk  = Number(s.avgBlocks?.value    ?? 0);
-      const min  = Number(s.avgMinutes?.value   ?? 0);
-      const fgPct = Number(s.fieldGoalPct?.value ?? 0);
-      if (pts || reb || ast) {
-        return Math.max(1, Math.min(100, Math.round(
-          pts*1.7 + reb*1.08 + ast*1.28 + stl*4 + blk*3 + fgPct*10 + min*0.2
-        )));
-      }
-      const salary = player.contract?.salary || player.contracts?.[0]?.salary || 0;
-      const exp = player.experience?.years || 0;
-      const prime = Math.max(0, 12 - Math.abs((player.age || 27) - 27));
-      const teamBoost = teamEntry ? numericStat(teamEntry,"winPercent") * 14 : 6;
-      const injuryPenalty = player.injuries?.length ? 8 : 0;
-      return Math.max(1, Math.min(100, Math.round((Math.log10(salary + 1) - 5) * 12 + exp * 2.2 + prime * 2 + teamBoost - injuryPenalty)));
+      const pts = Number(s.avgPoints?.value    ?? 0);
+      const reb = Number(s.avgRebounds?.value  ?? 0);
+      const ast = Number(s.avgAssists?.value   ?? 0);
+      if (!pts && !reb && !ast) return 0;
+      const stl = Number(s.avgSteals?.value    ?? 0);
+      const blk = Number(s.avgBlocks?.value    ?? 0);
+      const min = Number(s.avgMinutes?.value   ?? 0);
+      const ftm = Number(s.avgFTM?.value       ?? 0);
+      const fgm = Number(s.avgFGM?.value       ?? 0);
+      const fga = Number(s.avgFGA?.value       ?? 0);
+      const fta = Number(s.avgFTA?.value       ?? 0);
+      const to  = Number(s.avgTurnovers?.value ?? 0);
+      const pf  = Number(s.avgFouls?.value     ?? 0);
+      const pir = pts + reb + ast + stl + blk + ftm - (fga - fgm) - (fta - ftm) - to - pf;
+      if (min <= 0) return 0;
+      return pir / min * 36;
     }
 
     function calcBoxScore(stats) {
@@ -212,9 +210,17 @@
       const rows = averages.statistics ?? [];
       const idx = (name) => names.indexOf(name);
       const num = (row, name) => Number(row.stats?.[idx(name)] ?? 0);
+      const pair = (row, name) => {
+        const i = idx(name);
+        if (i < 0) return [0, 0];
+        const parts = String(row.stats?.[i] ?? "0-0").split("-");
+        return [Number(parts[0]) || 0, Number(parts[1]) || 0];
+      };
       const seasons = rows
         .filter(row => !row.displayName?.includes("Totals"))
         .map(row => {
+          const [fgm, fga] = pair(row, "avgFieldGoalsMade-avgFieldGoalsAttempted");
+          const [ftm, fta] = pair(row, "avgFreeThrowsMade-avgFreeThrowsAttempted");
           const stats = {
             gp: num(row, "gamesPlayed"),
             min: num(row, "avgMinutes"),
@@ -224,6 +230,8 @@
             stl: num(row, "avgSteals"),
             blk: num(row, "avgBlocks"),
             to: num(row, "avgTurnovers"),
+            pf: num(row, "avgFouls"),
+            fgm, fga, ftm, fta,
             fgPct: num(row, "fieldGoalPct"),
             threePct: num(row, "threePointFieldGoalPct"),
           };
@@ -300,6 +308,12 @@
               avgMinutes:   { value: cur.stats.min, display: cur.stats.min.toFixed(1) },
               gamesPlayed:  { value: cur.stats.gp,  display: String(cur.stats.gp) },
               fieldGoalPct: { value: cur.stats.fgPct, display: cur.stats.fgPct.toFixed(3) },
+              avgFGM:       { value: cur.stats.fgm, display: cur.stats.fgm.toFixed(1) },
+              avgFGA:       { value: cur.stats.fga, display: cur.stats.fga.toFixed(1) },
+              avgFTM:       { value: cur.stats.ftm, display: cur.stats.ftm.toFixed(1) },
+              avgFTA:       { value: cur.stats.fta, display: cur.stats.fta.toFixed(1) },
+              avgTurnovers: { value: cur.stats.to,  display: cur.stats.to.toFixed(1) },
+              avgFouls:     { value: cur.stats.pf,  display: cur.stats.pf.toFixed(1) },
               PER:          { value: 0, display: "-" },
             } : {};
           } catch { state.playerStats[p.id] = {}; }
@@ -310,9 +324,66 @@
 
     async function loadPlayerHistory(player) {
       if (!state.playerHistory[player.id]) {
+        try {
+          const rows = await getJSON(`/api/db/players/${player.id}/seasons`);
+          if (Array.isArray(rows) && rows.length) {
+            state.playerHistory[player.id] = dbRowsToSeasonHistory(rows);
+            return state.playerHistory[player.id];
+          }
+        } catch {}
         state.playerHistory[player.id] = parseSeasonHistory(await getJSON(`/api/athlete/${player.id}/history`));
       }
       return state.playerHistory[player.id];
+    }
+
+    function careerChart(seasons, fromDB) {
+      const pts = seasons
+        .map(s => ({ label: s.label, score: fromDB ? (s.score_alltime || 0) : Math.round(Math.min(100, (s.adjustedScore || 0) / ALL_TIME_MAX_ADJ * 100)) }))
+        .filter(p => p.score > 0);
+      if (pts.length < 2) return "";
+
+      const W = 800, H = 160;
+      const ml = 38, mr = 16, mt = 14, mb = 42;
+      const cw = W - ml - mr, ch = H - mt - mb;
+      const n = pts.length;
+      const px = i => ml + (i / (n - 1)) * cw;
+      const py = s => mt + (1 - s / 100) * ch;
+
+      const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"}${px(i).toFixed(1)},${py(p.score).toFixed(1)}`).join(" ");
+      const fillPath = `${linePath} L${px(n-1).toFixed(1)},${(mt+ch).toFixed(1)} L${px(0).toFixed(1)},${(mt+ch).toFixed(1)} Z`;
+
+      const gridLines = [25, 50, 75, 100].map(v => `
+        <line x1="${ml}" y1="${py(v).toFixed(1)}" x2="${ml+cw}" y2="${py(v).toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/>
+        <text x="${ml-6}" y="${(py(v)+4).toFixed(1)}" font-size="10" fill="#9ca3af" text-anchor="end">${v}</text>`).join("");
+
+      const step = n > 9 ? 2 : 1;
+      const xLabels = pts.map((p, i) => i % step !== 0 ? "" : `
+        <text x="${px(i).toFixed(1)}" y="${H-4}" font-size="10" fill="#9ca3af" text-anchor="middle"
+              transform="rotate(-35,${px(i).toFixed(1)},${H-4})">${p.label}</text>`).join("");
+
+      const dots = pts.map((p, i) => `
+        <circle cx="${px(i).toFixed(1)}" cy="${py(p.score).toFixed(1)}" r="5" fill="#111827" stroke="white" stroke-width="2"
+          style="cursor:pointer;transition:r .1s"
+          onmouseover="this.setAttribute('r','7');showChartTip(this,'${p.label.replace(/'/g,"\\'")}',${p.score})"
+          onmouseout="this.setAttribute('r','5');hideChartTip()">
+        </circle>`).join("");
+
+      return `<div class="border-b border-black/10 px-5 py-4">
+        <p class="mb-3 text-xs font-black uppercase tracking-[.18em] text-[#667085]">Evolución score histórico</p>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#111827" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#111827" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${gridLines}
+          <path d="${fillPath}" fill="url(#cg)"/>
+          <path d="${linePath}" fill="none" stroke="#111827" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          ${dots}
+          ${xLabels}
+        </svg>
+      </div>`;
     }
 
     async function openPlayerDetail(player) {
@@ -323,9 +394,12 @@
       const seasons = await loadPlayerHistory(player);
       const current = seasons[seasons.length - 1];
       const best = [...seasons].sort((a,b) => b.adjustedScore - a.adjustedScore)[0];
-      const toHistScore = (adjScore) => Math.round(Math.min(100, (adjScore ?? 0) / ALL_TIME_MAX_ADJ * 100));
-      const currentHistScore = toHistScore(current?.adjustedScore);
-      const peakHistScore = toHistScore(best?.adjustedScore);
+      const fromDB = seasons[0]?._fromDB;
+      const toHistScore = fromDB
+        ? (s) => s?.score_alltime ?? s?.adjustedScore ?? 0
+        : (adjScore) => Math.round(Math.min(100, (adjScore ?? 0) / ALL_TIME_MAX_ADJ * 100));
+      const currentHistScore = fromDB ? toHistScore(current) : toHistScore(current?.adjustedScore);
+      const peakHistScore    = fromDB ? toHistScore(best)    : toHistScore(best?.adjustedScore);
       body.innerHTML = `
         <div class="court-lines border-b border-black/10 p-5">
           <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -334,31 +408,84 @@
               <div>
                 <p class="text-xs font-black uppercase tracking-[.18em] text-[#667085]">${player.teamName ?? player.teamAbbr ?? ""} · ${player.position?.abbreviation ?? ""}</p>
                 <h2 class="display text-5xl font-black uppercase leading-none">${player.displayName}</h2>
-                <p class="mt-2 text-sm font-semibold text-[#667085]">Score hist.: escala era-ajustada 0–100 donde 100 = Shaq 1999-00. Score liga: relativo a la temporada actual.</p>
+                <p class="mt-2 text-sm font-semibold text-[#667085]">Score liga: percentil entre jugadores activos esta temporada. Score histórico: percentil PIR/36 all-time.</p>
               </div>
             </div>
             <button class="rounded border border-black/15 px-3 py-2 text-xs font-black uppercase hover:bg-[#111827] hover:text-white" onclick="document.getElementById('player-detail').classList.add('hidden')">Cerrar</button>
           </div>
           <div class="mt-5 grid gap-3 md:grid-cols-4">
             ${[
-              ["Score liga 25-26", player.score ?? "-", "Relativo a la liga actual (mejor jugador ≈ 97)"],
-              ["Score histórico act.", currentHistScore || "-", "Escala era-ajustada 0-100 · 100 = Shaq 1999-00"],
+              ["Score liga actual", player.score ?? "-", "Percentil entre todos los jugadores activos esta temporada"],
+              ["Score histórico act.", currentHistScore || "-", fromDB ? "Percentil PIR/36 all-time · 100 = mejor de la historia" : "Escala era-ajustada 0-100 · 100 = Shaq 1999-00"],
               ["Score histórico pico", peakHistScore || "-", `Mejor temporada: ${best?.label ?? "-"}`],
-              ["Mejor temporada", best?.label ?? "-", "Temporada con mayor score era-ajustado"],
+              ["Mejor temporada", best?.label ?? "-", "Temporada con mayor score histórico"],
             ].map(([label,value,tip]) => `<div class="rounded border border-black/10 bg-white p-3" title="${tip}"><p class="text-xs font-black uppercase text-[#667085]">${label}</p><p class="display text-4xl font-black">${value}</p></div>`).join("")}
           </div>
         </div>
+        ${careerChart(seasons, fromDB)}
         <div class="overflow-x-auto">
           <table class="w-full min-w-[880px] text-left">
-            <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Temporada</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right" title="Escala era-ajustada 0-100 · 100 = Shaq 1999-00 · comparable entre eras">Score hist.</th><th class="px-4 py-3 text-right" title="Score de esta temporada relativo a la propia carrera del jugador (100 = su mejor año)">Score carrera</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">STL</th><th class="px-4 py-3 text-right">MIN</th><th class="px-4 py-3 text-right">PJ</th></tr></thead>
+            <thead class="bg-black/5 display text-sm uppercase text-[#667085]"><tr><th class="px-4 py-3">Temporada</th><th class="px-4 py-3">Equipo</th><th class="px-4 py-3 text-right" title="Percentil PIR/36 all-time · 100 = mejor temporada de la historia">Score hist.</th><th class="px-4 py-3 text-right">PTS</th><th class="px-4 py-3 text-right">REB</th><th class="px-4 py-3 text-right">AST</th><th class="px-4 py-3 text-right">STL</th><th class="px-4 py-3 text-right">MIN</th><th class="px-4 py-3 text-right">PJ</th></tr></thead>
             <tbody class="display text-xl">${seasons.map(season => {
-              const hs = toHistScore(season.adjustedScore);
-              return `<tr class="row border-b border-black/10"><td class="px-4 py-3">${season.label}</td><td class="px-4 py-3 text-[#667085]">${season.teamSlug ?? "-"}</td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-20"><div class="bar-fill" style="width:${hs}%"></div></div><span class="font-black">${hs}</span></div></td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-16"><div class="bar-fill" style="width:${season.normalized}%"></div></div><span>${season.normalized}</span></div></td><td class="px-4 py-3 text-right">${season.stats.pts.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.reb.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.ast.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.stl.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.min.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.gp}</td></tr>`;
+              const hs = fromDB ? toHistScore(season) : toHistScore(season.adjustedScore);
+              return `<tr class="row border-b border-black/10"><td class="px-4 py-3">${season.label}</td><td class="px-4 py-3 text-[#667085]">${season.teamSlug ?? "-"}</td><td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-3"><div class="bar-track w-20"><div class="bar-fill" style="width:${hs}%"></div></div><span class="font-black">${hs}</span></div></td><td class="px-4 py-3 text-right">${season.stats.pts.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.reb.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.ast.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.stl.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.min.toFixed(1)}</td><td class="px-4 py-3 text-right">${season.stats.gp}</td></tr>`;
             }).join("")}</tbody>
           </table>
         </div>
       `;
       detail.scrollIntoView({ behavior:"smooth", block:"start" });
+    }
+
+    function dbRowToPlayer(row) {
+      const f = (v, d = 1) => v != null ? Number(v).toFixed(d) : "-";
+      return {
+        id:          String(row.id),
+        displayName: row.name,
+        position:    { abbreviation: row.pos || "" },
+        headshot:    { href: row.headshot || "" },
+        teamAbbr:    row.team || "",
+        teamName:    row.team || "",
+        score:       row.score_season || 0,
+        _scoreAlltime: row.score_alltime || 0,
+        _fromDB:     true,
+        statsFlat: {
+          avgPoints:    { value: row.pts,    display: f(row.pts) },
+          avgRebounds:  { value: row.reb,    display: f(row.reb) },
+          avgAssists:   { value: row.ast,    display: f(row.ast) },
+          avgSteals:    { value: row.stl,    display: f(row.stl) },
+          avgBlocks:    { value: row.blk,    display: f(row.blk) },
+          avgMinutes:   { value: row.min,    display: f(row.min) },
+          gamesPlayed:  { value: row.gp,     display: String(row.gp ?? "-") },
+          avgFGM:       { value: row.fgm,    display: f(row.fgm) },
+          avgFGA:       { value: row.fga,    display: f(row.fga) },
+          avgFTM:       { value: row.ftm,    display: f(row.ftm) },
+          avgFTA:       { value: row.fta,    display: f(row.fta) },
+          avgTurnovers: { value: row.tov,    display: f(row.tov) },
+          avgFouls:     { value: row.pf,     display: f(row.pf) },
+          fieldGoalPct: { value: row.fg_pct, display: f(row.fg_pct, 3) },
+        },
+      };
+    }
+
+    function dbRowsToSeasonHistory(rows) {
+      if (!rows.length) return [];
+      const maxPir = Math.max(...rows.map(r => r.pir_36 || 0), 1);
+      return rows.map(row => ({
+        label:         row.season,
+        year:          row.year,
+        teamSlug:      row.team || "-",
+        stats: {
+          gp:  row.gp,  min:  row.min,  pts:  row.pts,  reb:  row.reb,
+          ast: row.ast, stl:  row.stl,  blk:  row.blk,
+          to:  row.tov, pf:   row.pf,
+        },
+        pir_36:        row.pir_36,
+        score_season:  row.score_season,
+        score_alltime: row.score_alltime,
+        normalized:    Math.max(1, Math.round((row.pir_36 / maxPir) * 100)),
+        adjustedScore: row.score_alltime,
+        _fromDB:       true,
+      }));
     }
 
     async function loadRoster(abbr) {
@@ -372,20 +499,22 @@
     async function selectTeam(abbr) {
       const team = state.teams.find(t => t.abbreviation === abbr), entry = teamStanding(abbr);
       $("team-hero").dataset.team = abbr;
-      $("team-hero").innerHTML = `<div class="flex items-center gap-4"><img class="h-20 w-20 object-contain" src="${team?.logos?.[0]?.href ?? ""}" alt=""><div><p class="text-xs font-bold uppercase tracking-[.18em] text-[#667085]">Roster actual · ${statValue(entry || {}, "overall")}</p><h2 class="display text-5xl font-black uppercase leading-none">${team?.displayName}</h2><p class="mt-1 text-sm font-bold uppercase text-[#667085]">Cargando jugadores y estadísticas ESPN...</p></div></div>`;
-      const roster = await loadRoster(abbr);
-      await hydrateStats(roster);
-      roster.forEach(p => p.score = calcScore(p, entry));
-      // If we already have league-wide scores, re-use them for this roster
-      if (state.allPlayers.length) {
-        roster.forEach(p => {
-          const cached = state.allPlayers.find(ap => ap.id === p.id);
-          if (cached?.score) p.score = cached.score;
-        });
-      } else {
+      $("team-hero").innerHTML = `<div class="flex items-center gap-4"><img class="h-20 w-20 object-contain" src="${team?.logos?.[0]?.href ?? ""}" alt=""><div><p class="text-xs font-bold uppercase tracking-[.18em] text-[#667085]">Roster actual · ${statValue(entry || {}, "overall")}</p><h2 class="display text-5xl font-black uppercase leading-none">${team?.displayName}</h2><p class="mt-1 text-sm font-bold uppercase text-[#667085]">Cargando...</p></div></div>`;
+      let roster;
+      try {
+        const rows = await getJSON(`/api/db/teams/${abbr}/roster`);
+        if (Array.isArray(rows) && rows.length) {
+          roster = rows.map(dbRowToPlayer);
+          state.rosters[abbr] = roster;
+        }
+      } catch {}
+      if (!roster) {
+        roster = await loadRoster(abbr);
+        await hydrateStats(roster);
+        roster.forEach(p => p.score = calcScore(p));
         normalizeLeagueScores(roster);
       }
-      renderRoster(team, entry, roster.sort((a,b)=>b.score-a.score));
+      renderRoster(team, entry, roster.sort((a, b) => b.score - a.score));
     }
 
     function renderRoster(team, entry, roster) {
@@ -395,43 +524,39 @@
     }
 
     function normalizeLeagueScores(players) {
-      // Only consider players with real box-score stats (not the salary fallback)
-      const valid = players.filter(p => {
-        const sf = p.statsFlat || {};
-        return Number(sf.avgPoints?.value ?? 0) + Number(sf.avgRebounds?.value ?? 0) > 0;
-      });
+      const valid = players.filter(p => p.score > 0);
       if (valid.length < 30) return;
-
-      // Store the raw formula value so team-ranking can still use it
-      valid.forEach(p => { p._raw = p.score; });
-
-      // Sort raw scores, use 3rd–97th percentile as the scale bounds to ignore outliers
-      const sorted = valid.map(p => p._raw).sort((a, b) => a - b);
-      const n = sorted.length;
-      const lo  = sorted[Math.floor(n * 0.03)];
-      const hi  = sorted[Math.floor(n * 0.97)];
-      const span = hi - lo || 1;
-
-      // Map to 2–97 so no one sits exactly at 0 or 100, leaving room for all-time scores
-      valid.forEach(p => {
-        p.score = Math.max(2, Math.min(97, Math.round((p._raw - lo) / span * 95 + 2)));
+      valid.sort((a, b) => a.score - b.score);
+      const n = valid.length;
+      valid.forEach((p, i) => {
+        p.score = Math.max(1, Math.min(100, Math.round((i + 1) / n * 100)));
       });
     }
 
     async function loadAllPlayers() {
       if (state.allPlayers.length) return state.allPlayers;
-      $("players-status").textContent = "Cargando rosters de los 30 equipos...";
+      $("players-status").textContent = "Cargando jugadores...";
+      try {
+        const rows = await getJSON("/api/db/players");
+        if (Array.isArray(rows) && rows.length && !rows.error) {
+          state.allPlayers = rows.map(dbRowToPlayer);
+          $("players-status").textContent = `${state.allPlayers.length} jugadores · scores PIR/36 normalizados.`;
+          return state.allPlayers;
+        }
+      } catch {}
+      // Fallback: ESPN live
+      $("players-status").textContent = "DB no disponible — cargando desde ESPN...";
       const batches = [];
       for (let i = 0; i < state.teams.length; i += 6) batches.push(state.teams.slice(i, i+6));
       for (const batch of batches) await Promise.all(batch.map(t => loadRoster(t.abbreviation)));
       state.allPlayers = Object.values(state.rosters).flat();
-      state.allPlayers.forEach(p => p.score = calcScore(p, teamStanding(p.teamAbbr)));
+      state.allPlayers.forEach(p => p.score = calcScore(p));
       const top = [...state.allPlayers].sort((a,b)=>b.score-a.score).slice(0, 120);
-      $("players-status").textContent = "Enriqueciendo rankings con estadísticas individuales ESPN...";
+      $("players-status").textContent = "Enriqueciendo con estadísticas ESPN...";
       await hydrateStats(top, 120);
-      state.allPlayers.forEach(p => p.score = calcScore(p, teamStanding(p.teamAbbr)));
+      state.allPlayers.forEach(p => p.score = calcScore(p));
       normalizeLeagueScores(state.allPlayers);
-      $("players-status").textContent = `${state.allPlayers.length} jugadores · scores normalizados contra la liga.`;
+      $("players-status").textContent = `${state.allPlayers.length} jugadores · scores ESPN normalizados.`;
       return state.allPlayers;
     }
 
@@ -464,7 +589,6 @@
           return mpg >= minMPG && gp >= minGP;
         });
         if (!qualified.length) continue;
-        qualified.forEach(p => { p.score = calcScore(p, teamStanding(abbr)); });
         const sorted = [...qualified].sort((a, b) => b.score - a.score);
         const avg = sorted.reduce((s, p) => s + p.score, 0) / sorted.length;
         scores[abbr] = { avg: Math.round(avg * 10) / 10, count: sorted.length, players: sorted, team: state.teams.find(t => t.abbreviation === abbr), entry: teamStanding(abbr) };
@@ -484,7 +608,7 @@
       if (remaining.length) {
         status.textContent = `Cargando estadísticas de ${remaining.length} jugadores restantes...`;
         await hydrateStats(state.allPlayers);
-        state.allPlayers.forEach(p => { p.score = calcScore(p, teamStanding(p.teamAbbr)); });
+        state.allPlayers.forEach(p => { p.score = calcScore(p); });
       }
       const scores = calcTeamScores(mpg, gp);
       const ranked = Object.entries(scores).sort((a, b) => b[1].avg - a[1].avg);
@@ -789,5 +913,19 @@
     loadCore().catch(err => { $("updated-label").textContent = "Error cargando datos"; $("scoreboard").innerHTML = `<div class="p-4 text-red-200">${err.message}</div>`; });
     setInterval(loadCore, 60000);
   </script>
+<div id="chart-tip" style="position:fixed;pointer-events:none;display:none;background:#111827;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;z-index:9999;transform:translate(-50%,-110%)"></div>
+<script>
+  function showChartTip(el, label, score) {
+    const tip = document.getElementById('chart-tip');
+    tip.textContent = label + ' · ' + score;
+    tip.style.display = 'block';
+    const r = el.getBoundingClientRect();
+    tip.style.left = (r.left + r.width / 2) + 'px';
+    tip.style.top  = r.top + 'px';
+  }
+  function hideChartTip() {
+    document.getElementById('chart-tip').style.display = 'none';
+  }
+</script>
 </body>
 </html>
