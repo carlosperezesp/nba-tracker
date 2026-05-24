@@ -97,7 +97,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
         with db_conn() as conn:
             rows = conn.execute("""
-                SELECT p.id, p.name, p.pos, p.headshot, p.team,
+                SELECT p.id, p.name, p.pos, p.headshot, p.team, p.birth_year,
                        s.season, s.year, s.gp, s.min,
                        s.pts, s.reb, s.ast, s.stl, s.blk, s.tov, s.pf,
                        s.fgm, s.fga, s.ftm, s.fta, s.fg_pct,
