@@ -20,6 +20,27 @@ TEAM_ABBRS = [
     "OKC","ORL","PHI","PHX","POR","SAC","SA","TOR","UTAH","WSH",
 ]
 
+# NBA championships per current franchise (all-time, including relocated predecessors)
+FRANCHISE_CUPS = {
+    "ATL": 1,  "BOS": 18, "BKN": 0,  "CHA": 0,  "CHI": 6,
+    "CLE": 1,  "DAL": 1,  "DEN": 1,  "DET": 3,  "GS":  7,
+    "HOU": 2,  "IND": 0,  "LAC": 0,  "LAL": 17, "MEM": 0,
+    "MIA": 3,  "MIL": 2,  "MIN": 0,  "NO":  0,  "NY":  2,
+    "OKC": 1,  "ORL": 0,  "PHI": 3,  "PHX": 0,  "POR": 1,
+    "SAC": 0,  "SA":  5,  "TOR": 1,  "UTAH":0,  "WSH": 1,
+}
+
+# Championship rings for active players (name-based)
+PLAYER_RINGS = {
+    "LeBron James": 4, "Stephen Curry": 4, "Klay Thompson": 4, "Draymond Green": 4,
+    "Udonis Haslem": 3, "Kevin Durant": 2, "Kyrie Irving": 1,
+    "Nikola Jokic": 1, "Jamal Murray": 1, "Michael Porter Jr.": 1,
+    "Kentavious Caldwell-Pope": 2, "Aaron Gordon": 1,
+    "Jayson Tatum": 1, "Jaylen Brown": 1, "Al Horford": 1,
+    "Jrue Holiday": 2, "Kristaps Porzingis": 1, "Derrick White": 1,
+    "Sam Hauser": 1, "Payton Pritchard": 1, "Luke Kornet": 1,
+}
+
 
 def get(url):
     for i in range(3):
@@ -37,12 +58,14 @@ def get(url):
 def init_db(conn):
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS players (
-            id       INTEGER PRIMARY KEY,
-            name     TEXT    NOT NULL,
-            pos      TEXT,
-            headshot TEXT,
-            team     TEXT,
-            updated  TEXT
+            id           INTEGER PRIMARY KEY,
+            name         TEXT    NOT NULL,
+            pos          TEXT,
+            headshot     TEXT,
+            team         TEXT,
+            updated      TEXT,
+            birth_year   INTEGER DEFAULT 0,
+            career_score INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS seasons (
@@ -91,12 +114,25 @@ def fetch_roster(abbr):
         for player in players:
             pid = player.get("id")
             if pid:
+                birth_year = 0
+                dob = player.get("dateOfBirth") or ""
+                if dob:
+                    try:
+                        birth_year = int(dob[:4])
+                    except (ValueError, IndexError):
+                        pass
+                if not birth_year and player.get("age"):
+                    try:
+                        birth_year = date.today().year - int(player["age"])
+                    except (ValueError, TypeError):
+                        pass
                 out.append({
-                    "id":       int(pid),
-                    "name":     player.get("displayName") or player.get("fullName", ""),
-                    "pos":      (player.get("position") or {}).get("abbreviation", ""),
-                    "headshot": (player.get("headshot") or {}).get("href", ""),
-                    "team":     abbr,
+                    "id":         int(pid),
+                    "name":       player.get("displayName") or player.get("fullName", ""),
+                    "pos":        (player.get("position") or {}).get("abbreviation", ""),
+                    "headshot":   (player.get("headshot") or {}).get("href", ""),
+                    "team":       abbr,
+                    "birth_year": birth_year,
                 })
     return out
 
@@ -176,6 +212,88 @@ def to_percentiles(values):
             for v in values]
 
 
+def dynasty_cups_value(cups):
+    if cups == 0:  return 10
+    if cups <= 1:  return 22
+    if cups <= 2:  return 32
+    if cups <= 3:  return 40
+    if cups <= 5:  return 50
+    if cups <= 7:  return 60
+    return min(85, round(55 + cups * 1.7))
+
+
+def calc_career_score(alltime_scores, rings=0):
+    if not alltime_scores:
+        return 0
+    s = sorted(alltime_scores, reverse=True)
+    top3_avg = sum(s[:3]) / min(len(s), 3)
+    top8_avg = sum(s[:8]) / min(len(s), 8)
+    length_bonus = min(len(alltime_scores) / 18, 1.0) * 15
+    cups_bonus   = rings * 4
+    return round(top3_avg * 0.55 + top8_avg * 0.20 + length_bonus + cups_bonus)
+
+
+def build_road_to_glory(conn):
+    print("Building road_to_glory.json...")
+    rows = conn.execute("""
+        SELECT p.id, p.name, p.pos, p.headshot, p.team, p.birth_year, p.career_score,
+               s.score_season, s.score_alltime
+        FROM players p
+        JOIN (
+            SELECT player_id, score_season, score_alltime,
+                   ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY year DESC, gp DESC) rn
+            FROM seasons
+        ) s ON s.player_id = p.id AND s.rn = 1
+        WHERE p.career_score > 0
+        ORDER BY p.career_score DESC
+    """).fetchall()
+
+    counts = {r["player_id"]: r["cnt"] for r in conn.execute(
+        "SELECT player_id, COUNT(*) cnt FROM seasons GROUP BY player_id"
+    ).fetchall()}
+
+    active = []
+    for r in rows:
+        d = dict(r)
+        d["seasons_count"] = counts.get(d["id"], 1)
+        d["current_score_season"] = d.pop("score_season", 0) or 0
+        d["current_score_alltime"] = d.pop("score_alltime", 0) or 0
+        active.append(d)
+
+    dynasty = []
+    for abbr in TEAM_ABBRS:
+        cups = FRANCHISE_CUPS.get(abbr, 0)
+        cv   = dynasty_cups_value(cups)
+        row  = conn.execute("""
+            SELECT AVG(s.score_season) avg
+            FROM players p
+            JOIN (
+                SELECT player_id, score_season,
+                       ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY year DESC, gp DESC) rn
+                FROM seasons
+            ) s ON s.player_id = p.id AND s.rn = 1
+            WHERE p.team = ? AND s.score_season > 0
+        """, (abbr,)).fetchone()
+        avg = float(row["avg"] or 0) if row else 0.0
+        dynasty.append({
+            "abbr":             abbr,
+            "cups":             cups,
+            "cups_value":       cv,
+            "avg_roster_score": round(avg, 1),
+            "dynasty_score":    round(cv + avg * 0.55),
+        })
+    dynasty.sort(key=lambda x: -x["dynasty_score"])
+
+    out = {
+        "built":                date.today().isoformat(),
+        "active_career_scores": active,
+        "dynasty_scores":       dynasty,
+    }
+    path = Path("data/road_to_glory.json")
+    path.write_text(json.dumps(out, ensure_ascii=False, indent=2))
+    print(f"  ✅  {path}  ({len(active)} players · {len(dynasty)} franchises)")
+
+
 def main():
     DB_PATH.parent.mkdir(exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
@@ -205,12 +323,13 @@ def main():
     today = date.today().isoformat()
     for p in all_players.values():
         conn.execute("""
-            INSERT INTO players(id, name, pos, headshot, team, updated)
-            VALUES (?,?,?,?,?,?)
+            INSERT INTO players(id, name, pos, headshot, team, updated, birth_year)
+            VALUES (?,?,?,?,?,?,?)
             ON CONFLICT(id) DO UPDATE SET
               name=excluded.name, pos=excluded.pos,
-              headshot=excluded.headshot, team=excluded.team, updated=excluded.updated
-        """, (p["id"], p["name"], p["pos"], p["headshot"], p["team"], today))
+              headshot=excluded.headshot, team=excluded.team, updated=excluded.updated,
+              birth_year=CASE WHEN excluded.birth_year > 0 THEN excluded.birth_year ELSE birth_year END
+        """, (p["id"], p["name"], p["pos"], p["headshot"], p["team"], today, p.get("birth_year", 0)))
     conn.commit()
 
     # 4. Fetch season histories (8 concurrent)
@@ -287,6 +406,24 @@ def main():
             s.get("score_season", 0), s.get("score_alltime", 0),
         ))
     conn.commit()
+
+    # 8. Compute career scores
+    print("Computing career scores...")
+    by_player: dict = {}
+    for pid, s in all_rows:
+        v = s.get("score_alltime", 0)
+        if v > 0:
+            by_player.setdefault(pid, []).append(v)
+    for pid, player in all_players.items():
+        rings  = PLAYER_RINGS.get(player["name"], 0)
+        career = calc_career_score(by_player.get(pid, []), rings)
+        conn.execute("UPDATE players SET career_score = ? WHERE id = ?", (career, pid))
+    conn.commit()
+    print(f"  {len(all_players)} career scores computed")
+
+    # 9. Export road_to_glory.json
+    build_road_to_glory(conn)
+
     conn.close()
 
     kb = DB_PATH.stat().st_size // 1024
